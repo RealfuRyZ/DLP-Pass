@@ -1,17 +1,17 @@
 # ============================================================
-# Windows 7 兼容版构建依赖（安装到 Python 3.8 虚拟环境 .venv38）
+# Windows 7-compatible build dependencies (install into a Python 3.8 venv)
 #
-# 安装步骤：
-#   1) 安装 Python 3.8.10（最后一个支持 Windows 7 的 CPython 版本）
-#   2) E:\\Python38\\python.exe -m venv .venv38
-#   3) .venv38\\Scripts\\python.exe -m pip install -r requirements-win7.txt
-#   4) .venv38\\Scripts\\python.exe packaging\\build_exe_win7.py
+# Steps:
+#   1) Install Python 3.8.10 (last CPython supporting Windows 7)
+#   2) E:\Python38\python.exe -m venv .venv38
+#   3) .venv38\Scripts\python.exe -m pip install -r requirements-win7.txt
+#   4) .venv38\Scripts\python.exe packaging/build_exe_win7.py
 #
-# 说明：
-# - Python 3.9+ 的 python3xx.dll 在 Windows 7 上无法加载（LoadLibrary 报错）；
-#   Qt6（PyQt6）同样要求 Windows 10+，因此 Win7 版固定使用 PyQt5（Qt 5.15）。
-# - PyInstaller 5.13.2 为支持 Python 3.8 / Windows 7 的稳妥版本。
-# - 程序完全离线运行，无数据库/网络依赖。
+# Notes:
+# - Python 3.9+ python3xx.dll cannot load on Windows 7 (LoadLibrary error);
+#   Qt6/PyQt6 also require Windows 10+, so this chain pins PyQt5 (Qt 5.15).
+# - PyInstaller 5.13.2 is the proven release for Python 3.8 / Windows 7.
+# - Keep this file pure ASCII (see note in requirements.txt).
 # ============================================================
 
 PyQt5==5.15.11

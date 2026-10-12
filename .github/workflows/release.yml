@@ -15,6 +15,8 @@ jobs:
   build-modern:
     name: Build DLP-Pass (Win10/11, PyQt6)
     runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -44,6 +46,8 @@ jobs:
   build-win7:
     name: Build DLP-Pass-Win7 (Win7 SP1+, Python 3.8 + PyQt5)
     runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@v4
 

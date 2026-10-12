@@ -1,15 +1,21 @@
 # ============================================================
-# DLP-Pass 运行依赖（版本与开发环境一致，可直接 pip install -r 安装）
+# DLP-Pass runtime & modern-build dependencies (Win10/11 build chain)
 #
-# 程序完全离线运行：映射数据来自本地 mappings/ 目录，无数据库/网络依赖。
-# 本文件同时是「现代版」的构建依赖；Win7 兼容版构建依赖见 requirements-win7.txt。
+# The app is fully offline: mappings come from the local mappings/
+# folder; no database or network dependency.
+#
+# Win7-compatible build chain dependencies: requirements-win7.txt
+# Build instructions: see README ("构建发布" / Build & Release).
+#
+# NOTE: keep this file pure ASCII -- some pip versions read requirements
+# files with the system ANSI codepage on non-English locales (CI runners).
 # ============================================================
 
-# 图形界面（PyQt6 深色主题 + QThread 异步架构；要求 Windows 10/11）
+# GUI toolkit (PyQt6 dark theme + QThread async workers; Windows 10/11)
 PyQt6==6.11.0
 PyQt6-Qt6==6.11.2
 PyQt6-sip==13.13.0
 
-# 仅「源码运行」时需要：开发模式下现场构建伪装白名单进程 exe；
-# 发布版单文件程序已内置预构建模板（writer_stub.exe），无需此依赖。
+# Only needed for "run from source" dev mode: builds the disguised writer
+# process exe on the fly. Release builds ship a prebuilt writer_stub.exe.
 pyinstaller==6.22.3

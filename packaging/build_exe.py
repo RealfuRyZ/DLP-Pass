@@ -27,6 +27,13 @@ import time
 from pathlib import Path
 from typing import Any
 
+# 控制台编码保护：非英文 locale（如 CI runner 的 cp1252）下打印中文不致崩溃
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGING_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
