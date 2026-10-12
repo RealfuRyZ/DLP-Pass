@@ -1,0 +1,16 @@
+# ============================================================
+# 构建发布版单文件程序所需的依赖说明
+#
+# 现代版（Windows 10/11，PyQt6）——主虚拟环境即可：
+#   .venv\\Scripts\\python.exe packaging\\build_exe.py
+#
+# Win7 兼容版（Windows 7 SP1+，Python 3.8 + PyQt5）——专用虚拟环境：
+#   .venv38\\Scripts\\python.exe packaging\\build_exe_win7.py
+#   依赖见 packaging\\requirements-win7.txt
+#
+# 说明：两条流水线均为标准 PyInstaller 单文件打包，
+#       **不做任何代码加密/混淆**（开源项目，源码即发布内容，用户可审计、
+#       可自行构建）。
+# ============================================================
+
+-r requirements.txt

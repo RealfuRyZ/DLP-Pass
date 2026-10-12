@@ -1,0 +1,373 @@
+{
+  "version": "20261009.1",
+  "updated": "2026-10-09",
+  "description": "自 MariaDB 映射库导出的初始数据（迁移于 2026-10-12）",
+  "rules": [
+    {
+      "extension": ".accdb",
+      "primary": "msaccess",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ai",
+      "primary": "illustrator",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".asm",
+      "primary": "xtop",
+      "alternatives": [
+        "ugraf"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cdr",
+      "primary": "coreldrw",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cpp",
+      "primary": "devenv",
+      "alternatives": [
+        "clion",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cs",
+      "primary": "devenv",
+      "alternatives": [
+        "rider",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".doc",
+      "primary": "winword",
+      "alternatives": [
+        "wps",
+        "kwps"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".docx",
+      "primary": "winword",
+      "alternatives": [
+        "wps",
+        "kwps"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dps",
+      "primary": "wpp",
+      "alternatives": [
+        "powerpnt"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dwg",
+      "primary": "acad",
+      "alternatives": [
+        "caxa",
+        "icad",
+        "zwcad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dxf",
+      "primary": "acad",
+      "alternatives": [
+        "caxa",
+        "zwcad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".eddx",
+      "primary": "edraw",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".et",
+      "primary": "et",
+      "alternatives": [
+        "excel"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".java",
+      "primary": "idea",
+      "alternatives": [
+        "eclipse",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".jpeg",
+      "primary": "2345Pic",
+      "alternatives": [
+        "PhotoViewer",
+        "wpsphoto"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".jpg",
+      "primary": "2345Pic",
+      "alternatives": [
+        "PhotoViewer",
+        "wpsphoto"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".js",
+      "primary": "node",
+      "alternatives": [
+        "code",
+        "webstorm"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".json",
+      "primary": "code",
+      "alternatives": [
+        "notepad++",
+        "idea",
+        "pycharm"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".log",
+      "primary": "notepad",
+      "alternatives": [
+        "notepad++",
+        "sublime_text",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".max",
+      "primary": "3dsmax",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mmap",
+      "primary": "MindManager",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mpp",
+      "primary": "winproj",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".one",
+      "primary": "onenote",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pdf",
+      "primary": "pdfeditor",
+      "alternatives": [
+        "AcroRd32",
+        "Acrobat",
+        "FoxitPDF",
+        "FoxitPDFEditor",
+        "FoxitReader",
+        "PDFXEdit",
+        "SumatraPDF",
+        "2345pdf"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".png",
+      "primary": "2345Pic",
+      "alternatives": [
+        "PhotoViewer",
+        "wpsphoto"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ppt",
+      "primary": "powerpnt",
+      "alternatives": [
+        "wpp"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pptx",
+      "primary": "powerpnt",
+      "alternatives": [
+        "wpp"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".prt",
+      "primary": "ugraf",
+      "alternatives": [
+        "xtop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".psd",
+      "primary": "photoshop",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".py",
+      "primary": "pycharm",
+      "alternatives": [
+        "python",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sldasm",
+      "primary": "SLDprt",
+      "alternatives": [
+        "solidworks"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sldprt",
+      "primary": "SLDprt",
+      "alternatives": [
+        "solidworks"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".txt",
+      "primary": "notepad",
+      "alternatives": [
+        "notepad++",
+        "sublime_text",
+        "code",
+        "winword"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".vsd",
+      "primary": "visio",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".vsdx",
+      "primary": "visio",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".wps",
+      "primary": "wps",
+      "alternatives": [
+        "kwps",
+        "winword"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".xls",
+      "primary": "excel",
+      "alternatives": [
+        "et"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".xlsx",
+      "primary": "excel",
+      "alternatives": [
+        "et"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".xmind",
+      "primary": "XMind",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".xml",
+      "primary": "notepad++",
+      "alternatives": [
+        "code",
+        "notepad",
+        "idea"
+      ],
+      "priority": 100,
+      "enabled": true
+    }
+  ]
+}

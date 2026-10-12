@@ -1,0 +1,32 @@
+# ============================================================
+# .gitignore —— 发布到公开仓库前请确保以下内容不被提交
+# ============================================================
+
+# 本地数据库凭据与个人配置（重要！请勿提交）
+config.json
+
+# Python 运行产物
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.venv38/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# 构建中间产物
+packaging/build/
+
+# 发布产物（推荐通过 GitHub Releases 发布 exe；
+# 如需直接把 dist 目录提交进仓库，请删除下面一行）
+packaging/dist/
+
+# 日志与崩溃报告
+*.log
+nuitka-crash-report.xml
+
+# 发布材料（手动上传到 Release 仓库，勿提交到源码仓库）
+packaging/release/
