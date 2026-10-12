@@ -15,7 +15,7 @@ Windows 7。本脚本使用最后一个支持 Win7 的 CPython（3.8）与 Qt 5.
 依赖安装（一次性）::
 
     E:\\Python38\\python.exe -m venv .venv38
-    .venv38\\Scripts\\python.exe -m pip install -r packaging\\requirements-win7.txt
+    .venv38\\Scripts\\python.exe -m pip install -r requirements-win7.txt
 
 产物：``packaging/dist/DLP-Pass-Win7.exe``（Windows 7 SP1 ~ Windows 11 均可运行）
 """

@@ -59,7 +59,7 @@ def build_writer_stub() -> Path:
         "--distpath", out_dir,
         "--workpath", BUILD_DIR / "writer_work",
         "--specpath", BUILD_DIR / "writer_work",
-        ROOT / "dlp_pass" / "core" / "writer_stub.py",
+        PACKAGING_DIR / "writer_stub.py",
     ])
     stub = out_dir / "writer_stub.exe"
     if not stub.is_file():

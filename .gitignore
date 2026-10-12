@@ -28,5 +28,3 @@ packaging/dist/
 *.log
 nuitka-crash-report.xml
 
-# 发布材料（手动上传到 Release 仓库，勿提交到源码仓库）
-packaging/release/

@@ -10,8 +10,8 @@
 ------------------
 1. 发布版（frozen）：主程序内置预构建的 ``writer_stub.exe`` 模板，
    运行时按目标进程名复制释放到缓存目录（无需安装 PyInstaller）；
-2. 开发模式：以 ``writer_stub.py`` 为源码模板，用 PyInstaller
-   （--onefile --noconsole）现场打包并缓存，构建参数与原脚本一致。
+2. 开发模式：以 ``packaging/writer_stub.py`` 为源码模板，用 PyInstaller
+   （--onefile --noconsole）现场打包并缓存，构建参数与发布构建一致。
 """
 
 from __future__ import annotations
@@ -30,7 +30,8 @@ from .bundle import find_data_file, is_bundled
 _logger = logging.getLogger(__name__)
 
 _CREATE_NO_WINDOW = 0x08000000
-_STUB_SOURCE = Path(__file__).resolve().parent / "writer_stub.py"
+# 伪装进程源码模板属于构建输入，位于项目 packaging/ 目录（打包产物内置 exe 模板，运行时不再需要）
+_STUB_SOURCE = Path(__file__).resolve().parents[2] / "packaging" / "writer_stub.py"
 
 
 class DisguisedWriterFactory:

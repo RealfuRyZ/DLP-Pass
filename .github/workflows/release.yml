@@ -1,0 +1,100 @@
+# 发布构建：推送任意 v 开头的标签（如 v2.3.1）即自动触发。
+# 在 GitHub 官方 Windows runner 上构建两个单文件 exe，自动创建 Release。
+name: Release build
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-modern:
+    name: Build DLP-Pass (Win10/11, PyQt6)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests
+
+      - name: Build exe
+        run: python packaging/build_exe.py
+
+      - name: Smoke test (--selftest, bundled mappings)
+        run: packaging/dist/DLP-Pass.exe --selftest
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-modern
+          path: packaging/dist/DLP-Pass.exe
+
+  build-win7:
+    name: Build DLP-Pass-Win7 (Win7 SP1+, Python 3.8 + PyQt5)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade "pip<25"
+          pip install -r requirements-win7.txt
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests
+
+      - name: Build exe
+        run: python packaging/build_exe_win7.py
+
+      - name: Smoke test (--selftest, bundled mappings)
+        run: packaging/dist/DLP-Pass-Win7.exe --selftest
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries-win7
+          path: packaging/dist/DLP-Pass-Win7.exe
+
+  release:
+    name: Publish GitHub Release
+    needs: [build-modern, build-win7]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum DLP-Pass.exe DLP-Pass-Win7.exe > SHA256SUMS.txt
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # 同名 Release 已存在时先删除（重复打标签场景），再创建
+          gh release view "$TAG" >/dev/null 2>&1 && gh release delete "$TAG" -y || true
+          gh release create "$TAG" \
+            artifacts/DLP-Pass.exe \
+            artifacts/DLP-Pass-Win7.exe \
+            artifacts/SHA256SUMS.txt \
+            --generate-notes \
+            --title "DLP-Pass $TAG"

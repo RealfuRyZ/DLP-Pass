@@ -19,15 +19,17 @@ DLP-Pass 是一个**完全离线**的 Windows 桌面工具：把被 DLP 客户�
 
 ## 下载预构建版本
 
-绿色单文件可执行程序发布于
-[RealfuRyZ/DLP-Pass-Release](https://github.com/RealfuRyZ/DLP-Pass-Release)（含 SHA256 校验值）：
+每个版本标签（tag）由 GitHub Actions 自动构建并发布到本仓库
+[Releases](https://github.com/RealfuRyZ/DLP-Pass/releases)，附 `SHA256SUMS.txt`；
+构建日志公开，可核对源码与产物的一致性：
 
 | 文件 | 适用系统 | 技术栈 |
 | --- | --- | --- |
 | `DLP-Pass.exe` | Windows 10 / 11（64 位） | Python 3.14 + PyQt6 |
 | `DLP-Pass-Win7.exe` | Windows 7 SP1 ~ 11（64 位） | Python 3.8 + PyQt5 |
 
-当然，你也可以按「构建发布」一节自行打包，产物完全等价。
+> 首次运行如遇 Windows SmartScreen 提示（免费开源软件未做商业签名的常见现象），
+> 选择「更多信息 → 仍要运行」即可；你也可以按下文自行构建，产物完全等价。
 
 ## 工作原理
 
@@ -67,22 +69,24 @@ DLP-Pass/
 │   │   ├── decrypt_service.py   # 解密主流程：读取 -> 伪装落盘 -> 校验
 │   │   ├── source_reader.py     # 明文读取（含委派白名单进程）
 │   │   ├── verifier.py          # 密文检测（PowerShell 非白名单视角）
-│   │   ├── writer_factory.py    # 伪装进程模板释放与复用
-│   │   ├── writer_stub.py       # 伪装进程模板源码（独立打包为 exe）
-│   │   ├── file_collector.py    # 目录遍历与无关目录剪枝
-│   │   └── bundle.py models.py  # 打包资源定位 / 数据结构
+│   │   ├── writer_factory.py    # 伪装进程模板释放与构建
+│   │   └── file_collector.py bundle.py models.py  # 遍历/资源定位/数据结构
 │   └── ui_qt/               # Qt 深色界面
 │       ├── qt_compat.py         # PyQt6/PyQt5 绑定兼容层
 │       ├── app.py               # 应用装配、日志、--selftest
 │       ├── main_window.py       # 主窗口与交互流程
-│       ├── widgets.py theme.py  # 自定义控件 / 主题样式
-│       └── workers.py           # QThread 后台任务（扫描 / 批量解密）
+│       └── widgets.py theme.py workers.py  # 控件 / 主题 / QThread 后台任务
 ├── mappings/                # ★ 映射数据：每文件一个版本（见目录内 README）
-├── packaging/               # 构建脚本与发布说明
-├── tests/                   # 单元测试（标准库 unittest，无第三方依赖）
-├── assets/                  # 文档图片
-├── requirements.txt         # 运行/开发依赖（现代版）
-└── LICENSE                  # GPLv3
+├── packaging/               # 构建脚本与打包输入
+│   ├── build_exe.py             # 现代版构建流水线
+│   ├── build_exe_win7.py        # Win7 兼容版构建流水线
+│   └── writer_stub.py           # 伪装进程源码模板（构建输入，不参与运行时导入）
+├── .github/workflows/     # CI：打 tag 自动构建并发布 Release
+├── tests/                 # 单元测试（标准库 unittest，无第三方依赖）
+├── assets/                # 文档图片
+├── requirements.txt       # 现代版：运行 + 构建依赖（Python 3.9+）
+├── requirements-win7.txt  # Win7 兼容版构建依赖（Python 3.8）
+└── LICENSE                # GPLv3
 ```
 
 ## 映射数据（mappings/）
@@ -131,13 +135,28 @@ python main.py --selftest <加密文件>   :: 无界面自检（退出码 0=成�
 
 ## 构建发布
 
+### CI 自动构建（推荐）
+
+发布新版本只需打标签：
+
+```bat
+git tag v2.3.1
+git push origin v2.3.1
+```
+
+GitHub Actions（`.github/workflows/release.yml`）会自动：在官方 Windows runner 上
+分别构建现代版与 Win7 兼容版（各跑一遍单元测试 + `--selftest` 冒烟），
+然后创建同名 Release，附上两个 exe 与 `SHA256SUMS.txt`。
+
+### 本地构建
+
 ```bat
 :: 现代版（Windows 10/11）—— 主虚拟环境
 .venv\Scripts\python.exe packaging\build_exe.py
 
 :: Win7 兼容版（Windows 7 SP1+）—— 需要 Python 3.8 专用虚拟环境
 E:\Python38\python.exe -m venv .venv38
-.venv38\Scripts\python.exe -m pip install -r packaging\requirements-win7.txt
+.venv38\Scripts\python.exe -m pip install -r requirements-win7.txt
 .venv38\Scripts\python.exe packaging\build_exe_win7.py
 ```
 

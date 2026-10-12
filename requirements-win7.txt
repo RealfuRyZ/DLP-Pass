@@ -4,7 +4,7 @@
 # 安装步骤：
 #   1) 安装 Python 3.8.10（最后一个支持 Windows 7 的 CPython 版本）
 #   2) E:\\Python38\\python.exe -m venv .venv38
-#   3) .venv38\\Scripts\\python.exe -m pip install -r packaging\\requirements-win7.txt
+#   3) .venv38\\Scripts\\python.exe -m pip install -r requirements-win7.txt
 #   4) .venv38\\Scripts\\python.exe packaging\\build_exe_win7.py
 #
 # 说明：
