@@ -8,6 +8,13 @@
 4. 将 ``*.pass`` 重命名为最终文件（等价于原脚本的 ``move /y``）；
 5. 用 PowerShell 校验输出文件是否仍含 TSD-Header 密文头，
    若仍为密文则删除输出并尝试下一个备用进程。
+
+输出模式（见 :mod:`dlp_pass.core.output_mode`）
+--------------------------------------------
+- 输出到指定目录：``task.output`` 位于输出目录内，保留相对目录结构，原始文件不动；
+- 原地解密覆盖：``task.in_place=True`` 且 ``task.output == task.source``。
+  此时先校验临时 ``*.pass`` 文件已是明文，再重命名覆盖原文件，
+  校验不通过时原文件绝不被动（重命名不改变内容，故无需二次校验）。
 """
 
 from __future__ import annotations
@@ -76,7 +83,9 @@ class DecryptService:
                 outcome.error = "已取消"
                 return outcome
             emit(f"尝试第 {index} 个白名单进程 [{proc_name}.exe] 进行导出...")
-            success, note = self._export_with_process(raw_bytes, proc_name, task.output, emit)
+            success, note = self._export_with_process(
+                raw_bytes, proc_name, task.output, emit, in_place=task.in_place
+            )
             outcome.attempts.append(f"{proc_name}: {note}")
             if success:
                 outcome.success = True
@@ -101,6 +110,7 @@ class DecryptService:
         proc_name: str,
         final_file: Path,
         emit: LogCallback,
+        in_place: bool = False,
     ) -> tuple[bool, str]:
         try:
             writer_exe = self._writers.get_writer(proc_name)
@@ -126,17 +136,22 @@ class DecryptService:
         if not pass_file.exists():
             return False, "伪装进程未产生输出文件"
 
-        try:
-            os.replace(pass_file, final_file)
-        except OSError:
-            # 与原始脚本一致的重命名兜底方案
-            subprocess.run(
-                f'cmd /c move /y "{pass_file}" "{final_file}"',
-                shell=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=_CREATE_NO_WINDOW,
-            )
+        if in_place:
+            # 原地覆盖：先校验临时文件为明文再替换原文件（重命名不改变内容），
+            # 避免把密文临时文件覆盖到原始路径导致原文件损坏。
+            if self._verifier.is_encrypted(pass_file) is True:
+                emit("校验结果: 临时导出文件仍包含 TSD-Header 密文标头，原文件保持不变")
+                try:
+                    pass_file.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                return False, "导出仍为密文（原文件未改动）"
+            if not self._move_into_place(pass_file, final_file):
+                return False, "覆盖原文件失败"
+            return True, "校验通过（原地覆盖）"
+
+        if not self._move_into_place(pass_file, final_file):
+            return False, "输出文件重命名失败"
 
         if self._verifier.is_encrypted(final_file) is True:
             emit(f"校验结果: 进程 [{proc_name}.exe] 导出的文件仍包含 TSD-Header 密文标头！")
@@ -146,3 +161,20 @@ class DecryptService:
                 pass
             return False, "输出仍为密文"
         return True, "校验通过"
+
+    @staticmethod
+    def _move_into_place(pass_file: Path, final_file: Path) -> bool:
+        """把临时 ``*.pass`` 文件移动到目标路径（等价原脚本的 ``move /y``）。"""
+        try:
+            os.replace(pass_file, final_file)
+            return final_file.exists()
+        except OSError:
+            # 与原始脚本一致的重命名兜底方案
+            subprocess.run(
+                f'cmd /c move /y "{pass_file}" "{final_file}"',
+                shell=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=_CREATE_NO_WINDOW,
+            )
+            return final_file.exists() and not pass_file.exists()

@@ -21,11 +21,16 @@ class TaskStatus(Enum):
 
 @dataclass(frozen=True)
 class DecryptTask:
-    """一次解密任务：源文件 -> 输出文件。"""
+    """一次解密任务：源文件 -> 输出文件。
+
+    ``in_place=True`` 表示「原地解密覆盖」：``output`` 与 ``source`` 为同一路径，
+    核心服务会在确认新内容为明文后才替换原文件，失败时原文件保持不变。
+    """
 
     source: Path
     output: Path
     suffix: str
+    in_place: bool = False
 
     @property
     def item_id(self) -> str:

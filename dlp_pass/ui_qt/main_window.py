@@ -2,7 +2,8 @@
 
 界面结构：
 - 顶部栏：应用标题 / 版本号 / 数据库连接徽标（含加载动画）/ 映射规则版本徽标；
-- 左侧：源文件卡片（拖拽区 + 工具栏 + 文件表格）、输出目录卡片；
+- 左侧：源文件卡片（拖拽区 + 工具栏 + 文件表格）、输出方式与目录卡片
+  （「输出到指定目录 / 原地解密覆盖」单选切换，原地模式下目录选择区域禁用）；
 - 右侧：白名单进程队列表格、任务统计卡片、实时日志面板；
 - 底部：状态文本、进度条、停止与「开始恢复 / 导出」主按钮。
 """
@@ -15,6 +16,7 @@ from pathlib import Path
 
 from .qt_compat import (
     QAbstractItemView,
+    QButtonGroup,
     QCheckBox,
     QColor,
     QFileDialog,
@@ -27,6 +29,7 @@ from .qt_compat import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QRadioButton,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -40,7 +43,7 @@ import dlp_pass
 from ..config import AppConfig
 from ..core.decrypt_service import DecryptService
 from ..core.mapping_loader import MappingSet
-from ..core.models import DecryptTask, make_item_id
+from ..core.output_mode import OutputMode, plan_decrypt_tasks, validate_output_dir
 from ..core.source_reader import SourceReader
 from ..core.verifier import EncryptionVerifier
 from ..core.writer_factory import DisguisedWriterFactory
@@ -235,16 +238,42 @@ class MainWindow(QMainWindow):
         source_card.body().addLayout(toolbar)
         source_card.body().addWidget(self._file_table, 1)
 
-        # 输出目录卡片
-        output_card = Card("输出目录")
-        output_row = QHBoxLayout()
-        output_row.setSpacing(8)
+        # 输出方式与目录卡片（模式切换 + 目录选择）
+        output_card = Card("输出方式与目录")
+        mode_row = QHBoxLayout()
+        mode_row.setSpacing(14)
+        mode_caption = QLabel("输出方式")
+        mode_caption.setObjectName("FieldCaption")
+        self._mode_group = QButtonGroup(self)
+        self._mode_directory_radio = QRadioButton(OutputMode.DIRECTORY.label)
+        self._mode_inplace_radio = QRadioButton(OutputMode.IN_PLACE.label)
+        self._mode_group.addButton(self._mode_directory_radio)
+        self._mode_group.addButton(self._mode_inplace_radio)
+        self._mode_directory_radio.setChecked(True)
+        self._mode_directory_radio.toggled.connect(self._on_output_mode_changed)
+        self._mode_inplace_radio.toggled.connect(self._on_output_mode_changed)
+        mode_row.addWidget(mode_caption)
+        mode_row.addWidget(self._mode_directory_radio)
+        mode_row.addWidget(self._mode_inplace_radio)
+        mode_row.addStretch(1)
+
+        dir_row = QHBoxLayout()
+        dir_row.setSpacing(8)
         self._output_edit = QLineEdit(str(self._config.default_output_dir))
         browse_button = QPushButton("浏览…")
         browse_button.clicked.connect(self._on_browse_output)
-        output_row.addWidget(self._output_edit, 1)
-        output_row.addWidget(browse_button)
-        output_card.body().addLayout(output_row)
+        dir_row.addWidget(self._output_edit, 1)
+        dir_row.addWidget(browse_button)
+        self._output_dir_widgets = (self._output_edit, browse_button)
+
+        self._output_hint = QLabel()
+        self._output_hint.setObjectName("DropHint")
+        self._output_hint.setWordWrap(True)
+
+        output_card.body().addLayout(mode_row)
+        output_card.body().addLayout(dir_row)
+        output_card.body().addWidget(self._output_hint)
+        self._on_output_mode_changed(True)  # 初始状态：目录模式可用
 
         layout.addWidget(source_card, 1)
         layout.addWidget(output_card, 0)
@@ -375,11 +404,44 @@ class MainWindow(QMainWindow):
             self._on_paths_dropped([folder])
 
     def _on_browse_output(self) -> None:
+        if self._current_output_mode() is not OutputMode.DIRECTORY:
+            return
         folder = QFileDialog.getExistingDirectory(
             self, "选择解密输出目录", self._output_edit.text().strip()
         )
         if folder:
             self._output_edit.setText(folder)
+
+    # ============================================================== 输出模式
+
+    def _current_output_mode(self) -> OutputMode:
+        """当前选择的解密输出方式。"""
+        if self._mode_inplace_radio.isChecked():
+            return OutputMode.IN_PLACE
+        return OutputMode.DIRECTORY
+
+    def _on_output_mode_changed(self, checked: bool = True) -> None:
+        """模式切换即时响应界面状态（无需刷新）：
+
+        - 「输出到指定目录」：输出目录输入框与「浏览…」按钮可用；
+        - 「原地解密覆盖」：输出目录选择区域整体禁用（置灰），用户无法修改路径。
+        """
+        if not checked:
+            return
+        directory_mode = self._mode_directory_radio.isChecked()
+        for widget in self._output_dir_widgets:
+            widget.setEnabled(directory_mode)
+        self._output_hint.setText(
+            "解密结果写入所选目录并保留原目录结构，原始加密文件保持不变。"
+            if directory_mode
+            else "直接覆盖原始文件路径，输出目录选择区域已禁用；原始文件将不再保留密文版本。"
+        )
+        self._output_hint.setProperty("mode", "directory" if directory_mode else "inplace")
+        self._output_hint.style().unpolish(self._output_hint)
+        self._output_hint.style().polish(self._output_hint)
+        status_label = getattr(self, "_status_label", None)  # 首次构建时底部栏尚未创建
+        if status_label is not None:
+            status_label.setText("就绪" if directory_mode else "就绪（原地解密覆盖）")
 
     def _on_clear(self) -> None:
         if self._running:
@@ -614,26 +676,37 @@ class MainWindow(QMainWindow):
         if not pending:
             QMessageBox.information(self, "提示", "没有待处理的任务（列表为空或均已跳过 / 完成）。")
             return
-        output_text = self._output_edit.text().strip()
-        if not output_text:
-            QMessageBox.warning(self, "提示", "请先选择解密输出目录。")
-            return
-        output_root = Path(output_text)
 
-        tasks: list[DecryptTask] = []
-        used_outputs: set[str] = set()
-        for entry in pending:
-            output = output_root / entry.relative_output
-            key = make_item_id(output)
-            if key in used_outputs:
-                self._set_entry_status(entry.item_id, "skipped", "输出路径与其它文件冲突，已跳过")
-                continue
-            used_outputs.add(key)
-            tasks.append(DecryptTask(source=entry.source, output=output, suffix=entry.suffix))
+        mode = self._current_output_mode()
+        output_root: Path | None = None
+        if mode is OutputMode.DIRECTORY:
+            valid, message, resolved = validate_output_dir(self._output_edit.text())
+            if not valid:
+                QMessageBox.warning(self, "输出目录无效", message)
+                self._log_panel.add_entry(f"已阻止开始批处理：{message}", "warning")
+                self._output_edit.setFocus()
+                return
+            output_root = resolved
+        else:
+            answer = QMessageBox.question(
+                self,
+                "确认原地解密覆盖",
+                f"即将对 {len(pending)} 个文件执行「原地解密覆盖」：解密结果会替换各自的原文件。\n"
+                "程序会先确认导出内容为明文再覆盖，确认失败时原文件保持不变。\n确定继续吗？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                self._log_panel.add_entry("用户取消了原地解密覆盖。", "warning")
+                return
+
+        tasks, conflicts = plan_decrypt_tasks(pending, mode, output_root)
+        for item_id, note in conflicts:
+            self._set_entry_status(item_id, "skipped", note)
         if not tasks:
             QMessageBox.information(self, "提示", "没有可执行的任务。")
             return
 
+        location = f"输出目录：{output_root}" if output_root is not None else "目标：各文件原始路径"
         self._running = True
         self._start_button.setEnabled(False)
         self._stop_button.setEnabled(True)
@@ -641,7 +714,7 @@ class MainWindow(QMainWindow):
         self._progress.setValue(0)
         self._progress.setFormat("%v / %m")
         self._status_label.setText(f"解密中… 0/{len(tasks)}")
-        self._log_panel.add_entry(f"开始批量解密：共 {len(tasks)} 个文件，输出目录：{output_root}", "info")
+        self._log_panel.add_entry(f"开始批量解密：共 {len(tasks)} 个文件，模式：{mode.label}，{location}", "info")
 
         if self._decrypt_worker is not None and not self._decrypt_worker.isRunning():
             self._decrypt_worker.deleteLater()

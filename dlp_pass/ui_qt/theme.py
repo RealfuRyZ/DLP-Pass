@@ -130,6 +130,25 @@ QCheckBox::indicator {
 }
 QCheckBox::indicator:hover { border-color: $accent; }
 QCheckBox::indicator:checked { background-color: $accent; border-color: $accent; }
+QCheckBox:disabled { color: $text_faint; }
+
+QRadioButton { spacing: 8px; color: $text; }
+QRadioButton::indicator {
+    width: 16px; height: 16px; border-radius: 8px;
+    border: 1px solid $border; background-color: $window;
+}
+QRadioButton::indicator:hover { border-color: $accent; }
+QRadioButton::indicator:checked {
+    background-color: $accent; border: 4px solid $accent;
+}
+QRadioButton:disabled { color: $text_faint; }
+
+QLineEdit:disabled {
+    color: $text_faint; background-color: $panel; border-color: $border_soft;
+}
+
+QLabel#FieldCaption { color: $text_muted; font-weight: 600; }
+QLabel#DropHint[mode="inplace"] { color: $warning; }
 
 /* ---------- 拖拽区 ---------- */
 QFrame#DropZone {

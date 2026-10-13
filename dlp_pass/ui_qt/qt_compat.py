@@ -36,6 +36,7 @@ QPen = QtGui.QPen
 # ------------------------------------------------------------- QtWidgets
 QAbstractItemView = QtWidgets.QAbstractItemView
 QApplication = QtWidgets.QApplication
+QButtonGroup = QtWidgets.QButtonGroup
 QCheckBox = QtWidgets.QCheckBox
 QFileDialog = QtWidgets.QFileDialog
 QFrame = QtWidgets.QFrame
@@ -48,6 +49,7 @@ QMainWindow = QtWidgets.QMainWindow
 QMessageBox = QtWidgets.QMessageBox
 QProgressBar = QtWidgets.QProgressBar
 QPushButton = QtWidgets.QPushButton
+QRadioButton = QtWidgets.QRadioButton
 QSizePolicy = QtWidgets.QSizePolicy
 QSplitter = QtWidgets.QSplitter
 QTableWidget = QtWidgets.QTableWidget
