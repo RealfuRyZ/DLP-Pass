@@ -79,6 +79,8 @@ jobs:
     needs: [build-modern, build-win7]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -88,6 +90,32 @@ jobs:
         run: |
           cd artifacts
           sha256sum DLP-Pass.exe DLP-Pass-Win7.exe > SHA256SUMS.txt
+
+      - name: Build release notes from CHANGELOG
+        env:
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # 发布说明 = CHANGELOG.md 中本版本段落 + 与历史版本一致的 Full Changelog 链接
+          set -euo pipefail
+          tag="${TAG#v}"
+          if [ -f CHANGELOG.md ]; then
+            awk -v header="## ${tag} " '
+              /^## / { in_section = (index($0, header) == 1) }
+              in_section { print }
+            ' CHANGELOG.md > section.md
+          else
+            : > section.md
+          fi
+          {
+            if [ -s section.md ]; then
+              cat section.md
+            else
+              echo "${TAG} 更新说明见提交历史。"
+            fi
+            printf '\n**Full Changelog**: https://github.com/%s/commits/%s\n' "$GH_REPO" "$TAG"
+          } > release-notes.md
+          cat release-notes.md
 
       - name: Create release
         env:
@@ -101,5 +129,5 @@ jobs:
             artifacts/DLP-Pass.exe \
             artifacts/DLP-Pass-Win7.exe \
             artifacts/SHA256SUMS.txt \
-            --generate-notes \
+            --notes-file release-notes.md \
             --title "DLP-Pass $TAG"

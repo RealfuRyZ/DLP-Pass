@@ -52,6 +52,8 @@ DLP-Pass 是一个**完全离线**的 Windows 桌面工具：把被 DLP 客户�
 ## 功能特性
 
 - 拖拽文件 / 文件夹批量解密，保留原有目录结构，自动跳过未加密文件
+- **两种解密输出方式**：「输出到指定目录」（原始文件保持不变）或「原地解密覆盖」
+  （解密结果直接替换原文件；先校验为明文再覆盖，校验失败时原文件完整保留）
 - 现代化深色界面：任务列表、实时日志、进度条、状态徽标与统计卡片（PyQt6 / PyQt5 双绑定同一套代码）
 - 自动密文检测与导出结果校验（确保最终输出为明文）
 - 版本化本地映射数据（`mappings/` 目录，启动时始终读取最新版本，改映射无需重装）
@@ -66,7 +68,8 @@ DLP-Pass/
 │   ├── config.py            # 应用配置与内置兜底映射规则
 │   ├── core/                # 解密业务逻辑（与界面完全解耦，可独立复用）
 │   │   ├── mapping_loader.py    # mappings/ 版本化映射加载（取最新版）
-│   │   ├── decrypt_service.py   # 解密主流程：读取 -> 伪装落盘 -> 校验
+│   │   ├── output_mode.py       # 输出模式：原地覆盖 / 指定目录（目录校验 + 任务编排）
+│   │   ├── decrypt_service.py   # 解密主流程：读取 -> 伪装落盘 -> 校验（含原地覆盖保护）
 │   │   ├── source_reader.py     # 明文读取（含委派白名单进程）
 │   │   ├── verifier.py          # 密文检测（PowerShell 非白名单视角）
 │   │   ├── writer_factory.py    # 伪装进程模板释放与构建
@@ -81,9 +84,10 @@ DLP-Pass/
 │   ├── build_exe.py             # 现代版构建流水线
 │   ├── build_exe_win7.py        # Win7 兼容版构建流水线
 │   └── writer_stub.py           # 伪装进程源码模板（构建输入，不参与运行时导入）
-├── .github/workflows/     # CI：打 tag 自动构建并发布 Release
+├── .github/workflows/     # CI：打 tag 自动构建并发布 Release（更新说明取自 CHANGELOG.md）
 ├── tests/                 # 单元测试（标准库 unittest，无第三方依赖）
 ├── assets/                # 文档图片
+├── CHANGELOG.md           # 版本更新说明（CI 摘录为 Release 正文）
 ├── requirements.txt       # 现代版：运行 + 构建依赖（Python 3.9+）
 ├── requirements-win7.txt  # Win7 兼容版构建依赖（Python 3.8）
 └── LICENSE                # GPLv3
@@ -147,6 +151,9 @@ git push origin v2.3.1
 GitHub Actions（`.github/workflows/release.yml`）会自动：在官方 Windows runner 上
 分别构建现代版与 Win7 兼容版（各跑一遍单元测试 + `--selftest` 冒烟），
 然后创建同名 Release，附上两个 exe 与 `SHA256SUMS.txt`。
+
+Release 正文（更新说明）取自 [`CHANGELOG.md`](./CHANGELOG.md) 中对应版本的段落，
+并保留 `**Full Changelog**` 链接，因此发布前先在该文件补写本版本说明即可。
 
 ### 本地构建
 
