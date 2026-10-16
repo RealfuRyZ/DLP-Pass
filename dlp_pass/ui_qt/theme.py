@@ -139,7 +139,7 @@ QRadioButton::indicator {
 }
 QRadioButton::indicator:hover { border-color: $accent; }
 QRadioButton::indicator:checked {
-    background-color: $accent; border: 4px solid $accent;
+    background-color: $accent; border: 1px solid $accent; border-radius: 8px;
 }
 QRadioButton:disabled { color: $text_faint; }
 
