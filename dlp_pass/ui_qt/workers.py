@@ -88,8 +88,21 @@ class ScanWorker(QThread):
             return None
 
 
+def group_tasks_by_suffix(tasks: Sequence[DecryptTask]) -> list[DecryptTask]:
+    """按文件后缀分组排序：同后缀任务连续排列，组内保持原有顺序（稳定排序）。
+
+    仅影响后台处理顺序（前台文件列表的展示顺序不变）；后缀连续使核心服务
+    可以复用同一个常驻伪装进程，避免逐文件反复创建 / 销毁伪装进程的开销。
+    """
+    return sorted(tasks, key=lambda task: task.suffix.lower())
+
+
 class DecryptWorker(QThread):
-    """后台批量解密：逐文件调用核心 DecryptService。"""
+    """后台批量解密：按后缀分组排序后逐文件调用核心 DecryptService。
+
+    同后缀任务连续处理：核心服务对每个后缀只启动一次伪装进程并在组内复用，
+    组处理完（或后缀切换 / 取消）后再关闭，避免逐文件反复创建、销毁进程。
+    """
 
     task_started = pyqtSignal(str)  # item_id
     task_finished = pyqtSignal(str, str, str)  # item_id, status(success/failed/cancelled), note
@@ -109,43 +122,47 @@ class DecryptWorker(QThread):
     def run(self) -> None:
         total = len(self._tasks)
         done = success = failed = 0
-        for task in self._tasks:
-            item_id = task.item_id
-            if self._cancel.is_set():
-                self.task_finished.emit(item_id, "cancelled", "已取消")
-                done += 1
-                self.progress.emit(done, total, success, failed)
-                continue
+        try:
+            for task in group_tasks_by_suffix(self._tasks):
+                item_id = task.item_id
+                if self._cancel.is_set():
+                    self.task_finished.emit(item_id, "cancelled", "已取消")
+                    done += 1
+                    self.progress.emit(done, total, success, failed)
+                    continue
 
-            self.task_started.emit(item_id)
-            try:
-                outcome = self._service.decrypt_file(
-                    task,
-                    log=lambda message: self.log.emit(message, "info"),
-                    is_cancelled=self._cancel.is_set,
-                )
-            except Exception as exc:
-                _logger.exception("解密任务异常")
-                self.task_finished.emit(item_id, "failed", f"内部异常: {exc}")
-                done += 1
-                failed += 1
-                self.progress.emit(done, total, success, failed)
-                continue
+                self.task_started.emit(item_id)
+                try:
+                    outcome = self._service.decrypt_file(
+                        task,
+                        log=lambda message: self.log.emit(message, "info"),
+                        is_cancelled=self._cancel.is_set,
+                    )
+                except Exception as exc:
+                    _logger.exception("解密任务异常")
+                    self.task_finished.emit(item_id, "failed", f"内部异常: {exc}")
+                    done += 1
+                    failed += 1
+                    self.progress.emit(done, total, success, failed)
+                    continue
 
-            if outcome.cancelled:
-                self.task_finished.emit(item_id, "cancelled", "已取消")
-                done += 1
-            elif outcome.success:
-                success += 1
-                done += 1
-                sha_prefix = (outcome.sha256 or "")[:12]
-                self.task_finished.emit(
-                    item_id, "success", f"进程 {outcome.process_name}.exe · SHA256 {sha_prefix}…"
-                )
-            else:
-                failed += 1
-                done += 1
-                self.task_finished.emit(item_id, "failed", outcome.error or "导出失败")
-            self.progress.emit(done, total, success, failed)
+                if outcome.cancelled:
+                    self.task_finished.emit(item_id, "cancelled", "已取消")
+                    done += 1
+                elif outcome.success:
+                    success += 1
+                    done += 1
+                    sha_prefix = (outcome.sha256 or "")[:12]
+                    self.task_finished.emit(
+                        item_id, "success", f"进程 {outcome.process_name}.exe · SHA256 {sha_prefix}…"
+                    )
+                else:
+                    failed += 1
+                    done += 1
+                    self.task_finished.emit(item_id, "failed", outcome.error or "导出失败")
+                self.progress.emit(done, total, success, failed)
+        finally:
+            # 批量结束 / 取消 / 异常：关闭常驻伪装进程，避免进程残留
+            self._service.close()
 
         self.finished_all.emit({"total": total, "done": done, "success": success, "failed": failed})

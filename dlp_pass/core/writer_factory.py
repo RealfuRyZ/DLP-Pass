@@ -30,12 +30,24 @@ from .bundle import find_data_file, is_bundled
 _logger = logging.getLogger(__name__)
 
 _CREATE_NO_WINDOW = 0x08000000
+# 伪装进程 stdin/stdout 协议版本：修改 packaging/writer_stub.py 的运行协议时
+# 必须同步递增；旧缓存 exe 因缺少/不匹配版本标记而失效，自动重建或重新释放。
+_PROTOCOL_VERSION = "2"
 # 伪装进程源码模板属于构建输入，位于项目 packaging/ 目录（打包产物内置 exe 模板，运行时不再需要）
 _STUB_SOURCE = Path(__file__).resolve().parents[2] / "packaging" / "writer_stub.py"
 
 
+def _protocol_marker_path(exe_path: Path) -> Path:
+    """缓存 exe 的协议版本标记文件路径（缓存有效性依据）。"""
+    return exe_path.with_suffix(exe_path.suffix + ".protocol")
+
+
 class DisguisedWriterFactory:
-    """按需构建/释放并缓存伪装进程 exe（线程安全）。"""
+    """按需构建/释放并缓存伪装进程 exe（线程安全）。
+
+    缓存有效性 = 文件存在且协议版本标记与当前代码一致：主程序升级后
+    旧版本释放的缓存进程会被自动重建 / 重新释放，避免新旧协议不匹配。
+    """
 
     def __init__(self, config: AppConfig):
         self._config = config
@@ -64,13 +76,17 @@ class DisguisedWriterFactory:
     def _release_bundled_stub(self, stub: Path, exe_path: Path) -> Path:
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(stub, exe_path)
+        _protocol_marker_path(exe_path).write_text(_PROTOCOL_VERSION, encoding="ascii")
         _logger.info("已从内置模板释放伪装进程: %s", exe_path)
         return exe_path
 
     @staticmethod
     def _is_valid(exe_path: Path) -> bool:
         try:
-            return exe_path.is_file() and exe_path.stat().st_size > 0
+            if not exe_path.is_file() or exe_path.stat().st_size <= 0:
+                return False
+            version = _protocol_marker_path(exe_path).read_text(encoding="ascii")
+            return version.strip() == _PROTOCOL_VERSION
         except OSError:
             return False
 
@@ -108,6 +124,7 @@ class DisguisedWriterFactory:
 
             final_exe = self._cache_dir / f"{clean_name}.exe"
             shutil.move(str(built_exe), str(final_exe))
+            _protocol_marker_path(final_exe).write_text(_PROTOCOL_VERSION, encoding="ascii")
             _logger.info("伪装进程已构建并缓存: %s", final_exe)
             return final_exe
 

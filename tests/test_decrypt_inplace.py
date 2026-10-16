@@ -1,13 +1,19 @@
-"""「原地解密覆盖」的安全性单元测试（核心层，不依赖界面与真实 DLP 环境）。
+"""核心层解密服务单元测试（不依赖界面与真实 DLP 环境）。
 
 用替身组件（映射 / 伪装进程 / 密文检测 / 源读取）驱动 :class:`DecryptService`，
-重点验证：导出仍为密文时绝不改动原始文件，导出为明文时才覆盖原文件。
+覆盖两类重点：
+
+1. 「原地解密覆盖」安全性：导出仍为密文时绝不改动原始文件，导出为明文时才覆盖；
+2. 批处理进程复用：同后缀连续任务只启动一次常驻伪装进程，后缀切换与
+   :meth:`DecryptService.close` 都会关闭上一分组的进程（对应 DecryptWorker
+   的后缀分组排序优化）。
 
 保持 Python 3.8 兼容（Win7 构建链同样运行本测试）。
 """
 
 from __future__ import annotations
 
+import base64
 import os
 import shutil
 import tempfile
@@ -21,6 +27,7 @@ from dlp_pass.core.models import DecryptTask
 MARKER = "%TSD-Header-###%"
 PLAINTEXT = b"HELLO PLAIN TEXT"
 CIPHERTEXT = MARKER.encode("utf-8") + b"ENCRYPTED BLOB"
+
 
 class FakeMapping:
     """固定进程队列的映射替身。"""
@@ -52,23 +59,107 @@ class FakeWriters:
         return Path("%s.exe" % proc_name)
 
 
-class FakeSubprocess:
-    """替身 subprocess 模块：伪装卸包写盘，可指定每个进程名写出的内容。"""
+class _FakeStdin:
+    """替身进程 stdin：按批处理协议在 flush 时解析请求并落盘。"""
 
-    OUTPUTS = {}  # 进程名 -> 落盘字节（测试中设置）
-    PIPE = -1     # 仅为替身：真实 subprocess.PIPE 语义在本测试中无副作用
+    def __init__(self, proc):
+        self._proc = proc
+        self._buffer = bytearray()
+        self.closed = False
+
+    def write(self, data):
+        self._buffer.extend(data)
+        return len(data)
+
+    def flush(self):
+        self._drain()
+
+    def close(self):
+        self.closed = True
+
+    def _drain(self):
+        while True:
+            index = self._buffer.find(b"\n")
+            if index < 0:
+                return
+            header = bytes(self._buffer[:index])
+            del self._buffer[: index + 1]
+            try:
+                token, size_text = header.split()
+                size = int(size_text)
+            except ValueError:
+                self._proc.stdout.push(b"ERR bad-header\n")
+                return
+            if len(self._buffer) < size:  # 数据尚未写完：头部放回等待下次 flush
+                self._buffer[:0] = header + b"\n"
+                return
+            del self._buffer[:size]
+            target = Path(os.fsdecode(base64.b64decode(token)))
+            proc_name = Path(self._proc.cmd[0]).stem
+            payload = FakeSubprocess.OUTPUTS.get(proc_name, CIPHERTEXT)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(payload)
+            self._proc.stdout.push(b"OK\n")
+
+
+class _FakeStdout:
+    """替身进程 stdout：按请求顺序返回 ``OK`` 应答。"""
+
+    def __init__(self):
+        self._pending = bytearray()
+        self.closed = False
+
+    def push(self, data):
+        self._pending.extend(data)
+
+    def readline(self):
+        index = self._pending.find(b"\n")
+        if index < 0:
+            if not self._pending:
+                return b""
+            line = bytes(self._pending)
+            self._pending.clear()
+            return line
+        line = bytes(self._pending[: index + 1])
+        del self._pending[: index + 1]
+        return line
+
+    def close(self):
+        self.closed = True
+
+
+class FakeSubprocess:
+    """替身 subprocess 模块：模拟常驻伪装进程的批处理 stdin/stdout 协议。
+
+    ``OUTPUTS`` 指定各进程名落盘的字节内容（默认密文）；``created`` 记录每次
+    启动的进程名，``processes`` 记录进程对象，用于断言进程复用与关闭时机。
+    """
+
+    OUTPUTS = {}
+    created = []
+    processes = []
+    PIPE = -1
     DEVNULL = -2
 
     class Popen:
         def __init__(self, cmd, **kwargs):
             self.cmd = list(cmd)
+            self.returncode = None
+            self.stdin = _FakeStdin(self)
+            self.stdout = _FakeStdout()
+            FakeSubprocess.created.append(Path(self.cmd[0]).stem)
+            FakeSubprocess.processes.append(self)
 
-        def communicate(self, input=None, timeout=None):
-            proc_name = Path(self.cmd[0]).stem
-            payload = FakeSubprocess.OUTPUTS.get(proc_name, CIPHERTEXT)
-            with open(self.cmd[1], "wb") as fh:
-                fh.write(payload)
-            return (b"", b"")
+        def poll(self):
+            return self.returncode
+
+        def wait(self, timeout=None):
+            if self.returncode is None:
+                self.returncode = 0
+            return self.returncode
+
+        def kill(self):
+            self.returncode = -9
 
     @staticmethod
     def run(cmd, **kwargs):
@@ -81,18 +172,29 @@ class FakeSubprocess:
         return None
 
 
-class DecryptInPlaceTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="dlp-inplace-"))
+class _FakeReader:
+    """源读取替身：始终返回明文（等价于 DLP 驱动为受信进程自动解密后的读取结果）。"""
+
+    def read(self, path):
+        return PLAINTEXT
+
+
+class _ServiceTestBase(unittest.TestCase):
+    """公共夹具：临时目录 + 替身 subprocess 补丁 + 服务构造。"""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="dlp-service-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
         FakeSubprocess.OUTPUTS = {}
+        FakeSubprocess.created = []
+        FakeSubprocess.processes = []
         self._patcher = mock.patch(
             "dlp_pass.core.decrypt_service.subprocess", FakeSubprocess
         )
         self._patcher.start()
         self.addCleanup(self._patcher.stop)
 
-    def _service(self, queue=("notepad", "winword")) -> DecryptService:
+    def _service(self, queue=("notepad", "winword")):
         return DecryptService(
             mapping=FakeMapping(queue),
             verifier=FakeVerifier(),
@@ -100,14 +202,16 @@ class DecryptInPlaceTest(unittest.TestCase):
             source_reader=_FakeReader(),
         )
 
-    def _make_source(self, name: str = "报告.docx", on_disk: bytes = CIPHERTEXT) -> Path:
+    def _make_source(self, name="报告.docx", on_disk=CIPHERTEXT):
         path = self.tmp / name
         path.write_bytes(on_disk)
         return path
 
-    # ------------------------------------------------------------------ 用例
 
-    def test_success_overwrites_original(self) -> None:
+class DecryptInPlaceTest(_ServiceTestBase):
+    """「原地解密覆盖」与目录输出模式的既有用例。"""
+
+    def test_success_overwrites_original(self):
         source = self._make_source()
         FakeSubprocess.OUTPUTS["notepad"] = PLAINTEXT
         task = DecryptTask(source=source, output=source, suffix=".docx", in_place=True)
@@ -119,7 +223,7 @@ class DecryptInPlaceTest(unittest.TestCase):
         self.assertFalse(list(self.tmp.glob("*.pass")))
         self.assertFalse(list(self.tmp.glob("*.dlpbak")))
 
-    def test_ciphertext_leaves_original_untouched(self) -> None:
+    def test_ciphertext_leaves_original_untouched(self):
         source = self._make_source()
         task = DecryptTask(source=source, output=source, suffix=".docx", in_place=True)
         outcome = self._service(queue=("notepad",)).decrypt_file(task)
@@ -129,7 +233,7 @@ class DecryptInPlaceTest(unittest.TestCase):
         self.assertEqual(outcome.attempts, ["notepad: 导出仍为密文（原文件未改动）"])
         self.assertFalse(list(self.tmp.glob("*.pass")))         # 临时文件已清理
 
-    def test_falls_back_to_next_process_without_touching_original(self) -> None:
+    def test_falls_back_to_next_process_without_touching_original(self):
         source = self._make_source(name="图纸.dwg")
         FakeSubprocess.OUTPUTS["notepad"] = CIPHERTEXT
         FakeSubprocess.OUTPUTS["winword"] = PLAINTEXT
@@ -140,7 +244,7 @@ class DecryptInPlaceTest(unittest.TestCase):
         self.assertEqual(outcome.process_name, "winword")
         self.assertEqual(source.read_bytes(), PLAINTEXT)
 
-    def test_cancel_before_attempt_keeps_original(self) -> None:
+    def test_cancel_before_attempt_keeps_original(self):
         source = self._make_source()
         task = DecryptTask(source=source, output=source, suffix=".docx", in_place=True)
         outcome = self._service().decrypt_file(task, is_cancelled=lambda: True)
@@ -149,7 +253,7 @@ class DecryptInPlaceTest(unittest.TestCase):
         self.assertFalse(outcome.success)
         self.assertEqual(source.read_bytes(), CIPHERTEXT)
 
-    def test_directory_mode_still_writes_to_output_only(self) -> None:
+    def test_directory_mode_still_writes_to_output_only(self):
         source = self._make_source(name="目录.docx")
         output = self.tmp / "out" / "目录.docx"
         FakeSubprocess.OUTPUTS["notepad"] = PLAINTEXT
@@ -160,7 +264,7 @@ class DecryptInPlaceTest(unittest.TestCase):
         self.assertEqual(output.read_bytes(), PLAINTEXT)
         self.assertEqual(source.read_bytes(), CIPHERTEXT)      # 原文件保持不变
 
-    def test_directory_mode_removes_ciphertext_output(self) -> None:
+    def test_directory_mode_removes_ciphertext_output(self):
         source = self._make_source(name="目录2.docx")
         output = self.tmp / "out2" / "目录2.docx"
         task = DecryptTask(source=source, output=output, suffix=".docx")
@@ -171,11 +275,45 @@ class DecryptInPlaceTest(unittest.TestCase):
         self.assertEqual(source.read_bytes(), CIPHERTEXT)
 
 
-class _FakeReader:
-    """源读取替身：始终返回明文（等价于 DLP 驱动为受信进程自动解密后的读取结果）。"""
+class BatchProcessReuseTest(_ServiceTestBase):
+    """批处理后缀分组复用常驻伪装进程的用例。"""
 
-    def read(self, path):
-        return PLAINTEXT
+    def _task(self, source: Path, suffix: str) -> DecryptTask:
+        return DecryptTask(source=source, output=self.tmp / "out" / source.name, suffix=suffix)
+
+    def test_same_suffix_batch_starts_writer_process_once(self):
+        FakeSubprocess.OUTPUTS["notepad"] = PLAINTEXT
+        service = self._service(queue=("notepad",))
+        tasks = [self._task(self._make_source(name="批量%d.docx" % i), ".docx") for i in range(3)]
+
+        outcomes = [service.decrypt_file(task) for task in tasks]
+        service.close()
+
+        self.assertTrue(all(outcome.success for outcome in outcomes))
+        self.assertEqual(FakeSubprocess.created, ["notepad"])   # 3 个文件只启动一次进程
+        self.assertTrue(all(proc.returncode is not None for proc in FakeSubprocess.processes))
+
+    def test_suffix_switch_closes_previous_group_process(self):
+        FakeSubprocess.OUTPUTS["notepad"] = PLAINTEXT
+        service = self._service(queue=("notepad",))
+        docx_source = self._make_source(name="一.docx")
+        pdf_source = self._make_source(name="二.pdf")
+
+        service.decrypt_file(self._task(docx_source, ".docx"))
+        service.decrypt_file(self._task(pdf_source, ".pdf"))
+
+        self.assertEqual(FakeSubprocess.created, ["notepad", "notepad"])  # 新分组重新启动
+        self.assertIsNotNone(FakeSubprocess.processes[0].returncode)      # 切组时旧进程已关闭
+        self.assertIsNone(FakeSubprocess.processes[1].returncode)         # 新分组进程仍常驻
+
+        service.close()
+        self.assertIsNotNone(FakeSubprocess.processes[1].returncode)
+
+    def test_close_without_started_sessions_is_safe(self):
+        service = self._service()
+        service.close()
+        service.close()
+        self.assertEqual(FakeSubprocess.created, [])
 
 
 if __name__ == "__main__":

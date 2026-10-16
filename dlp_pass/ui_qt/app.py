@@ -117,6 +117,7 @@ def _run_selftest(paths: list[str]) -> int:
             logger.error("[selftest] 解密失败: %s (%s)", source, outcome.error)
 
     verifier.close()
+    service.close()
     if not paths:
         logger.info("[selftest] 未提供待解密文件，仅完成映射加载检查")
     logger.info("[selftest] 结束：%d 个文件，失败 %d 个", len(paths), failed)
