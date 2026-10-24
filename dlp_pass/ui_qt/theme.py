@@ -62,6 +62,8 @@ QLabel#VersionChip {
     background-color: $elevated; color: $text_muted;
     border-radius: 9px; padding: 2px 10px; font-size: 9pt;
 }
+QLabel#UpdateHint { font-size: 9pt; }
+QLabel#AppLogo { background: transparent; }
 
 /* ---------- 卡片 ---------- */
 QFrame#Card {

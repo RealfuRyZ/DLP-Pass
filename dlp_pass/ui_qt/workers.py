@@ -15,14 +15,43 @@ import threading
 from collections.abc import Sequence
 from pathlib import Path
 
-from .qt_compat import QThread, pyqtSignal
+from .qt_compat import QObject, QThread, pyqtSignal
 
 from ..core.decrypt_service import DecryptService
 from ..core.file_collector import collect_entries
 from ..core.models import DecryptTask, make_item_id
 from ..core.verifier import EncryptionVerifier
+from ..version_check import fetch_latest_version
 
 _logger = logging.getLogger(__name__)
+
+
+class VersionCheckSignals(QObject):
+    """版本检查线程 -> 界面线程的信号。"""
+
+    checked = pyqtSignal(str)  # 最新 Release tag
+    failed = pyqtSignal()
+
+
+class VersionCheckTask:
+    """一次性的 GitHub Release 检查（daemon 线程，不阻塞程序退出）。"""
+
+    def __init__(self) -> None:
+        self.signals = VersionCheckSignals()
+
+    def start(self) -> None:
+        threading.Thread(
+            target=self._run,
+            name="dlp-pass-version-check",
+            daemon=True,
+        ).start()
+
+    def _run(self) -> None:
+        latest = fetch_latest_version()
+        if latest:
+            self.signals.checked.emit(latest)
+        else:
+            self.signals.failed.emit()
 
 
 class ScanWorker(QThread):

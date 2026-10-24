@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import logging
 import sys
 from pathlib import Path
@@ -11,6 +12,7 @@ from ..config import load_runtime_config
 from ..core.mapping_loader import load_latest
 from ..logging_setup import setup_logging
 from . import theme
+from .assets import app_icon
 from .main_window import MainWindow
 from .qt_compat import QApplication, QFont, QMessageBox, prepare_high_dpi
 
@@ -38,10 +40,20 @@ def run() -> None:
     """程序入口：加载配置与映射后启动 Qt 图形界面。"""
     setup_logging()
 
+    if sys.platform == "win32":
+        try:
+            # 让 Windows 任务栏按应用而不是 python.exe 分组并显示自定义图标
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+                "RealfuRyZ.DLPPass"
+            )
+        except Exception:
+            _logger.debug("设置 AppUserModelID 失败", exc_info=True)
+
     prepare_high_dpi()
     app = QApplication(sys.argv)
     app.setApplicationName("DLP 解密助手")
     app.setApplicationVersion(dlp_pass.__version__)
+    app.setWindowIcon(app_icon())
     app.setStyle("Fusion")
     app.setFont(QFont(theme.FONT_FAMILY, 10))
     app.setStyleSheet(theme.build_stylesheet())

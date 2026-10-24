@@ -47,9 +47,11 @@ from ..core.output_mode import OutputMode, plan_decrypt_tasks, validate_output_d
 from ..core.source_reader import SourceReader
 from ..core.verifier import EncryptionVerifier
 from ..core.writer_factory import DisguisedWriterFactory
+from ..version_check import RELEASE_PAGE_URL, is_newer
 from . import theme
+from .assets import app_icon, logo_pixmap
 from .widgets import Card, DropZone, LogPanel, StatCard, StatusBadge, format_size
-from .workers import DecryptWorker, ScanWorker
+from .workers import DecryptWorker, ScanWorker, VersionCheckTask
 
 _logger = logging.getLogger(__name__)
 
@@ -114,6 +116,7 @@ class MainWindow(QMainWindow):
         self._note_items: dict[str, QTableWidgetItem] = {}
         self._scan_worker: ScanWorker | None = None
         self._decrypt_worker: DecryptWorker | None = None
+        self._version_task: VersionCheckTask | None = None
         self._pending_scan_paths: list[list[str]] = []
         self._running = False
 
@@ -124,6 +127,9 @@ class MainWindow(QMainWindow):
         self._ui_refresh_timer.timeout.connect(self._flush_ui_refresh)
 
         self.setWindowTitle("DLP 解密助手")
+        icon = app_icon()
+        if not icon.isNull():
+            self.setWindowIcon(icon)
         self.setMinimumSize(1060, 660)
         self.resize(1180, 760)
         self.setAcceptDrops(True)
@@ -141,6 +147,8 @@ class MainWindow(QMainWindow):
         self._log_panel.add_entry(
             "欢迎使用 DLP 解密助手：拖入文件或文件夹后点击「开始恢复 / 导出」。", "info"
         )
+        if self._config.check_updates:
+            self._start_version_check()
 
     # ================================================================== 布局
 
@@ -172,18 +180,74 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 10, 16, 10)
         layout.setSpacing(10)
 
+        logo_pixmap_value = logo_pixmap(28)
+        if not logo_pixmap_value.isNull():
+            logo = QLabel()
+            logo.setObjectName("AppLogo")
+            logo.setPixmap(logo_pixmap_value)
+            logo.setFixedSize(28, 28)
+            layout.addWidget(logo)
+
         title = QLabel("DLP 解密助手")
         title.setObjectName("AppTitle")
-        version = QLabel(f"v{dlp_pass.__version__}")
-        version.setObjectName("VersionChip")
+        self._version_label = QLabel(f"v{dlp_pass.__version__}")
+        self._version_label.setObjectName("VersionChip")
+        self._update_hint = QLabel()
+        self._update_hint.setObjectName("UpdateHint")
+        self._update_hint.setTextFormat(Qt.TextFormat.RichText)
+        self._update_hint.setTextInteractionFlags(
+            Qt.TextInteractionFlag.LinksAccessibleByMouse
+        )
+        self._update_hint.setOpenExternalLinks(True)
+        self._update_hint.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._update_hint.setVisible(False)
 
         self._mapping_badge = StatusBadge("映射规则 —", "idle")
 
         layout.addWidget(title)
-        layout.addWidget(version)
+        layout.addWidget(self._version_label)
+        layout.addWidget(self._update_hint)
         layout.addStretch(1)
         layout.addWidget(self._mapping_badge)
         return bar
+
+    # --------------------------------------------------------- 版本检查
+
+    def _start_version_check(self) -> None:
+        """启动后台版本检查；网络异常时保持默认外观并静默降级。"""
+        task = VersionCheckTask()
+        task.signals.checked.connect(self._on_version_checked)
+        task.signals.failed.connect(self._on_version_check_failed)
+        self._version_task = task
+        task.start()
+
+    def _on_version_checked(self, latest: str) -> None:
+        if is_newer(latest, dlp_pass.__version__):
+            color = theme.COLORS["danger"]
+            self._version_label.setStyleSheet(f"color: {color};")
+            self._update_hint.setText(
+                f'<a href="{RELEASE_PAGE_URL}" '
+                f'style="color: {color}; text-decoration: none;">有新版本可用</a>'
+            )
+            self._update_hint.setToolTip(
+                f"最新版本：{latest.lstrip('vV')}，点击打开 Release 页面"
+            )
+            self._update_hint.setVisible(True)
+            _logger.info("检测到新版本：%s（当前 %s）", latest, dlp_pass.__version__)
+        else:
+            self._version_label.setStyleSheet(f"color: {theme.COLORS['success']};")
+            self._update_hint.clear()
+            self._update_hint.setToolTip("")
+            self._update_hint.setVisible(False)
+            _logger.info("当前版本已是最新：%s", dlp_pass.__version__)
+
+    def _on_version_check_failed(self) -> None:
+        """版本源不可用：仅显示当前版本，不标色、不提示。"""
+        self._version_label.setStyleSheet("")
+        self._update_hint.clear()
+        self._update_hint.setToolTip("")
+        self._update_hint.setVisible(False)
+        _logger.debug("版本检查失败，已静默降级")
 
     def _build_left_panel(self) -> QWidget:
         panel = QWidget()

@@ -13,7 +13,7 @@
 ; 也能把日志写入安装目录。
 ;
 ; 编译（在 packaging 目录）：
-;   makensis /DAPP_VERSION=2.3.2 installer.nsi
+;   makensis /DAPP_VERSION=2.4.0 installer.nsi
 ;
 ; 可选编译参数：
 ;   /DAPP_DIR=DLP-Pass-Win7 /DAPP_EXE=DLP-Pass-Win7.exe
@@ -28,7 +28,7 @@ Unicode true
 !include "LogicLib.nsh"
 
 !ifndef APP_VERSION
-  !define APP_VERSION "2.3.2"
+  !define APP_VERSION "2.4.0"
 !endif
 !ifndef APP_DIR
   !define APP_DIR "DLP-Pass"
@@ -70,6 +70,8 @@ VIAddVersionKey "LegalCopyright" "GNU GPLv3"
 VIAddVersionKey "URLInfoAbout" "${PRODUCT_URL}"
 
 !define MUI_ABORTWARNING
+!define MUI_ICON "..\assets\logo.ico"
+!define MUI_UNICON "..\assets\logo.ico"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\DLP-Pass.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "运行 DLP-Pass"
 
@@ -82,6 +84,35 @@ VIAddVersionKey "URLInfoAbout" "${PRODUCT_URL}"
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "SimpChinese"
+
+; ------------------------------------------------------------ 覆盖安装检测
+Function .onInit
+  ; 优先复用已安装目录，实现覆盖升级；目录页仍允许用户修改。
+  ReadRegStr $0 HKCU "${APP_REG_KEY}" "InstallDir"
+  ${If} $0 != ""
+    ${IfNot} ${FileExists} "$0\DLP-Pass.exe"
+      StrCpy $0 ""
+    ${EndIf}
+  ${EndIf}
+  ${If} $0 == ""
+    ReadRegStr $0 HKCU "${UNINSTALL_KEY}" "InstallLocation"
+    ${If} $0 != ""
+      ${IfNot} ${FileExists} "$0\DLP-Pass.exe"
+        StrCpy $0 ""
+      ${EndIf}
+    ${EndIf}
+  ${EndIf}
+  ${If} $0 != ""
+    StrCpy $INSTDIR $0
+    ReadRegStr $1 HKCU "${UNINSTALL_KEY}" "DisplayVersion"
+    ${If} $1 == ""
+      StrCpy $1 "旧版本"
+    ${EndIf}
+    ${IfNot} ${Silent}
+      MessageBox MB_OK|MB_ICONINFORMATION "检测到已安装 DLP-Pass $1。$\r$\n将覆盖安装程序文件，并保留 config.json、logs 等用户数据。"
+    ${EndIf}
+  ${EndIf}
+FunctionEnd
 
 ; ------------------------------------------------------------------ 主程序
 Section "DLP-Pass 主程序" SEC_MAIN
@@ -122,9 +153,11 @@ Section "DLP-Pass 主程序" SEC_MAIN
   nsExec::ExecToLog 'icacls "$INSTDIR\logs" /grant *S-1-5-32-545:(OI)(CI)M /T /C'
   Pop $0
   CreateDirectory "$SMPROGRAMS\DLP-Pass"
-  CreateShortCut "$SMPROGRAMS\DLP-Pass\DLP-Pass.lnk" "$INSTDIR\DLP-Pass.exe"
-  CreateShortCut "$SMPROGRAMS\DLP-Pass\卸载 DLP-Pass.lnk" "$INSTDIR\Uninstall.exe"
-  CreateShortCut "$DESKTOP\DLP-Pass.lnk" "$INSTDIR\DLP-Pass.exe"
+  ; 注意：ICON 文件与索引必须分成两个参数，写成一个 "xxx.exe,0" 会生成
+  ; "xxx.exe,0,0" 的非法 IconLocation，Windows 因而显示空白/默认图标。
+  CreateShortCut "$SMPROGRAMS\DLP-Pass\DLP-Pass.lnk" "$INSTDIR\DLP-Pass.exe" "" "$INSTDIR\DLP-Pass.exe" 0
+  CreateShortCut "$SMPROGRAMS\DLP-Pass\卸载 DLP-Pass.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\Uninstall.exe" 0
+  CreateShortCut "$DESKTOP\DLP-Pass.lnk" "$INSTDIR\DLP-Pass.exe" "" "$INSTDIR\DLP-Pass.exe" 0
 
   WriteRegStr HKCU "${APP_REG_KEY}" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "${PRODUCT_NAME}"

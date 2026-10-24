@@ -26,13 +26,17 @@ Qt = QtCore.Qt
 QObject = QtCore.QObject
 QTimer = QtCore.QTimer
 QThread = QtCore.QThread
+QUrl = QtCore.QUrl
 pyqtSignal = QtCore.pyqtSignal
 
 # ---------------------------------------------------------------- QtGui
 QColor = QtGui.QColor
+QDesktopServices = QtGui.QDesktopServices
 QFont = QtGui.QFont
+QIcon = QtGui.QIcon
 QPainter = QtGui.QPainter
 QPen = QtGui.QPen
+QPixmap = QtGui.QPixmap
 
 # ------------------------------------------------------------- QtWidgets
 QAbstractItemView = QtWidgets.QAbstractItemView

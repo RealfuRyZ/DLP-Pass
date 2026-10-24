@@ -17,7 +17,11 @@ Windows 7。本脚本使用最后一个支持 Win7 的 CPython（3.8）与 Qt 5.
     E:\\Python38\\python.exe -m venv .venv38
     .venv38\\Scripts\\python.exe -m pip install -r requirements-win7.txt
 
-产物：``packaging/dist/DLP-Pass-Win7/DLP-Pass-Win7.exe``
+产物：
+
+- 目录版：``packaging/dist/DLP-Pass-Win7/DLP-Pass-Win7.exe``
+- 绿色版：``packaging/dist/DLP-Pass-Win7-Portable.exe``
+
 （Windows 7 SP1 ~ Windows 11 均可运行）
 """
 
@@ -46,7 +50,10 @@ base.BUILD_DIR = PACKAGING_DIR / "build" / "win7"
 def main() -> None:
     print("构建目标：Windows 7 SP1+ 兼容版（Python 3.8 + PyQt5 + PyInstaller 5.13.2）")
     base.main()
-    exe = base.DIST_DIR / base.APP_NAME / f"{base.APP_NAME}.exe"
+    if "--portable" in sys.argv[1:]:
+        exe = base.DIST_DIR / f"{base.APP_NAME}-Portable.exe"
+    else:
+        exe = base.DIST_DIR / base.APP_NAME / f"{base.APP_NAME}.exe"
     if exe.is_file():
         print("\n提示：Win7 兼容版也可在 Windows 10/11 上运行；")
         print("      现代版（DLP-Pass.exe，PyQt6）仅支持 Windows 10/11。")

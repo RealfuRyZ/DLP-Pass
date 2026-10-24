@@ -1,5 +1,5 @@
-# 发布构建：推送任意 v 开头的标签（如 v2.3.1）即自动触发。
-# 在 GitHub 官方 Windows runner 上构建两个 onedir 程序与 NSIS 安装包，自动创建 Release。
+# 发布构建：推送任意 v 开头的标签（如 v2.4.0）即自动触发。
+# 在 GitHub 官方 Windows runner 上构建 onedir 程序、NSIS 安装包与单文件绿色版，自动创建 Release。
 name: Release build
 
 on:
@@ -47,10 +47,21 @@ jobs:
           }
           powershell -ExecutionPolicy Bypass -File packaging\build_installer.ps1
 
+      - name: Build portable exe
+        run: python packaging/build_exe.py --portable
+
+      - name: Smoke test portable
+        run: packaging/dist/DLP-Pass-Portable.exe --selftest
+
       - uses: actions/upload-artifact@v4
         with:
           name: installer-modern
           path: packaging/dist/DLP-Pass-Setup-*.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-modern
+          path: packaging/dist/DLP-Pass-Portable.exe
 
   build-win7:
     name: Build DLP-Pass-Win7 (Win7 SP1+, Python 3.8 + PyQt5)
@@ -87,10 +98,21 @@ jobs:
           }
           powershell -ExecutionPolicy Bypass -File packaging\build_installer.ps1 -AppDir DLP-Pass-Win7 -AppExe DLP-Pass-Win7.exe
 
+      - name: Build portable exe
+        run: python packaging/build_exe_win7.py --portable
+
+      - name: Smoke test portable
+        run: packaging/dist/DLP-Pass-Win7-Portable.exe --selftest
+
       - uses: actions/upload-artifact@v4
         with:
           name: installer-win7
           path: packaging/dist/DLP-Pass-Setup-*-Win7.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-win7
+          path: packaging/dist/DLP-Pass-Win7-Portable.exe
 
   release:
     name: Publish GitHub Release
@@ -107,7 +129,7 @@ jobs:
       - name: Generate checksums
         run: |
           cd artifacts
-          sha256sum DLP-Pass-Setup-*.exe > SHA256SUMS.txt
+          sha256sum DLP-Pass-Setup-*.exe DLP-Pass-Portable.exe DLP-Pass-Win7-Portable.exe > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Build release notes from CHANGELOG
@@ -146,6 +168,8 @@ jobs:
           gh release view "$TAG" >/dev/null 2>&1 && gh release delete "$TAG" -y || true
           gh release create "$TAG" \
             artifacts/DLP-Pass-Setup-*.exe \
+            artifacts/DLP-Pass-Portable.exe \
+            artifacts/DLP-Pass-Win7-Portable.exe \
             artifacts/SHA256SUMS.txt \
             --notes-file release-notes.md \
             --title "DLP-Pass $TAG"

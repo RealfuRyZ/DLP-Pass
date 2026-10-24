@@ -8,11 +8,13 @@
     {
         "powershell_timeout": 10.0,
         "default_output_dir": "D:/解密输出",
-        "mappings_dir": "D:/my-mappings"
+        "mappings_dir": "D:/my-mappings",
+        "check_updates": false
     }
 
-本程序完全离线运行：不连接任何数据库或网络服务，映射规则由本地
-``mappings/`` 目录提供（见 :mod:`dlp_pass.core.mapping_loader`）。
+核心解密完全离线运行：不连接数据库；映射规则由本地 ``mappings/`` 目录提供
+（见 :mod:`dlp_pass.core.mapping_loader`）。唯一的可选网络行为是启动时向
+GitHub Release 查询最新版本，可通过 ``check_updates: false`` 关闭。
 """
 
 from __future__ import annotations
@@ -62,6 +64,7 @@ class AppConfig:
     python_executable: str | None = None
     default_output_dir: Path = field(default_factory=_default_output_dir)
     mappings_dir: Path | None = None
+    check_updates: bool = True
 
     @classmethod
     def load(cls, path: Path | None = None) -> "AppConfig":
@@ -91,6 +94,8 @@ class AppConfig:
             config.default_output_dir = Path(data["default_output_dir"])
         if "mappings_dir" in data and data["mappings_dir"]:
             config.mappings_dir = Path(str(data["mappings_dir"]))
+        if "check_updates" in data:
+            config.check_updates = bool(data["check_updates"])
         return config
 
 
