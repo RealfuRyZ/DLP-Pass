@@ -318,6 +318,9 @@ Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\U
   核心解密仍可用（兜底规则），按目录内 README 补充即可。
 - **导出后校验仍为密文** —— 当前 DLP 策略未信任所使用的伪装进程名，
   请换用/增补白名单进程映射（见 `mappings/README.md`）。
+- **遇到无法解密的文件 / DLP 工具兼容性** —— 目前仅测试了少量 DLP 工具；若遇到无法
+  解密的文件，请通过 [GitHub Issue](https://github.com/RealfuRyZ/DLP-Pass/issues) 提交
+  反馈，并尽量附上 DLP 客户端名称与版本、文件后缀、错误信息及相关日志段落。
 - **首次启动稍慢** —— 安装版无需解压运行环境；单文件绿色版首次运行需解压，且可能被
   杀毒软件扫描，稍慢属正常。
 
