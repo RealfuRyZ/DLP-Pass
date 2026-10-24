@@ -1,18 +1,19 @@
-"""构建单文件可执行程序（现代版：PyQt6，Windows 10/11）。
+"""构建目录版可执行程序（现代版：PyQt6，Windows 10/11）。
 
 流程（标准 PyInstaller，无代码加密/混淆——源码即发布内容，可审计）：
 
 1. 预构建伪装进程模板 ``writer_stub.exe``（独立 onefile，运行时按进程名复制释放）；
-2. PyInstaller 单文件打包 ``main.py``：
+2. PyInstaller 目录版（``--onedir``）打包 ``main.py``：
    - 捆绑 ``mappings/`` 映射数据目录（exe 同目录放置同名目录可覆盖内置数据）；
    - 捆绑 ``writer_stub.exe``；
-3. 输出产物路径 / 大小 / SHA256。
+3. 输出产物目录 / 大小 / SHA256。
 
-用法（项目主虚拟环境中执行）::
+安装包发布使用目录版：启动快，且不会在每次右键解密时把整个运行环境解压到
+``%TEMP%``。用法（项目主虚拟环境中执行）::
 
     .venv\\Scripts\\python.exe packaging\\build_exe.py
 
-产物：``packaging/dist/DLP-Pass.exe``
+产物：``packaging/dist/DLP-Pass/DLP-Pass.exe``（连同同目录的 ``_internal\\``）
 
 Win7 兼容版请使用 ``build_exe_win7.py``（Python 3.8 + PyQt5，见该脚本说明）。
 """
@@ -76,11 +77,11 @@ def build_writer_stub() -> Path:
 
 
 def build_app(stub: Path) -> Path:
-    """PyInstaller 单文件打包：入口 main.py + 随包数据（mappings/、writer_stub.exe）。"""
-    step("2/2 PyInstaller 打包单文件程序")
+    """PyInstaller 目录版打包：入口 main.py + 随包数据（mappings/、writer_stub.exe）。"""
+    step("2/2 PyInstaller 打包目录版程序")
     args: list = [
         PYTHON, "-m", "PyInstaller",
-        "--onefile", "--noconsole", "--clean", "--noconfirm",
+        "--onedir", "--noconsole", "--clean", "--noconfirm",
         "--name", APP_NAME,
         "--distpath", DIST_DIR,
         "--workpath", BUILD_DIR / "app_work",
@@ -98,9 +99,9 @@ def build_app(stub: Path) -> Path:
     ]
     run(args)
 
-    exe = DIST_DIR / f"{APP_NAME}.exe"
+    exe = DIST_DIR / APP_NAME / f"{APP_NAME}.exe"
     if not exe.is_file():
-        sys.exit("单文件程序构建失败")
+        sys.exit("目录版程序构建失败")
     return exe
 
 
@@ -115,14 +116,17 @@ def main() -> None:
     exe = build_app(stub)
 
     digest = hashlib.sha256(exe.read_bytes()).hexdigest()
+    folder_size = sum(p.stat().st_size for p in exe.parent.rglob("*") if p.is_file())
     print("\n===== 构建完成 =====")
-    print(f"产物   : {exe}")
-    print(f"大小   : {exe.stat().st_size / 1024 / 1024:.1f} MB")
-    print(f"SHA256 : {digest}")
-    print(f"版本   : {dlp_pass.__version__}")
-    print(f"耗时   : {time.time() - started:.0f} 秒")
+    print(f"产物目录: {exe.parent}")
+    print(f"主程序  : {exe}")
+    print(f"目录大小: {folder_size / 1024 / 1024:.1f} MB")
+    print(f"exe SHA256: {digest}")
+    print(f"版本    : {dlp_pass.__version__}")
+    print(f"耗时    : {time.time() - started:.0f} 秒")
     print("\n部署验证（可选）:")
     print(f'  "{exe}" --selftest <待解密的加密文件>')
+    print(f'  "{exe}" --decrypt --in-place --progress --notify <路径>')
 
 
 if __name__ == "__main__":

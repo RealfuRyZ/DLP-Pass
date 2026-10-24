@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -91,3 +92,18 @@ class AppConfig:
         if "mappings_dir" in data and data["mappings_dir"]:
             config.mappings_dir = Path(str(data["mappings_dir"]))
         return config
+
+
+def load_runtime_config(project_root: Path | None = None) -> AppConfig:
+    """加载运行时配置：打包产物优先 exe 同目录的 config.json，其次项目根目录。"""
+    from .core.bundle import is_bundled  # 延迟导入，避免核心模块循环依赖
+
+    candidates: list[Path] = []
+    if is_bundled():
+        candidates.append(Path(sys.executable).resolve().parent / "config.json")
+    if project_root is not None:
+        candidates.append(Path(project_root) / "config.json")
+    for path in candidates:
+        if path.is_file():
+            return AppConfig.load(path)
+    return AppConfig()

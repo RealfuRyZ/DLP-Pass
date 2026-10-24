@@ -25,8 +25,10 @@ DLP-Pass 是一个**完全离线**的 Windows 桌面工具：把被 DLP 客户�
 
 | 文件 | 适用系统 | 技术栈 |
 | --- | --- | --- |
-| `DLP-Pass.exe` | Windows 10 / 11（64 位） | Python 3.14 + PyQt6 |
-| `DLP-Pass-Win7.exe` | Windows 7 SP1 ~ 11（64 位） | Python 3.8 + PyQt5 |
+| `DLP-Pass-Setup-<版本>.exe` | Windows 10 / 11（64 位） | Python 3.14 + PyQt6 |
+| `DLP-Pass-Setup-<版本>-Win7.exe` | Windows 7 SP1 ~ 11（64 位） | Python 3.8 + PyQt5 |
+
+下载后运行安装包即可；安装时可选择是否注册资源管理器右键菜单。
 
 > 首次运行如遇 Windows SmartScreen 提示（免费开源软件未做商业签名的常见现象），
 > 选择「更多信息 → 仍要运行」即可；你也可以按下文自行构建，产物完全等价。
@@ -57,15 +59,19 @@ DLP-Pass 是一个**完全离线**的 Windows 桌面工具：把被 DLP 客户�
 - 现代化深色界面：任务列表、实时日志、进度条、状态徽标与统计卡片（PyQt6 / PyQt5 双绑定同一套代码）
 - 自动密文检测与导出结果校验（确保最终输出为明文）
 - 版本化本地映射数据（`mappings/` 目录，启动时始终读取最新版本，改映射无需重装）
-- 单文件绿色版：内置全部运行环境，无需安装 Python
+- 目录版安装包（`--onedir`）：内置全部运行环境，安装后启动快，可在系统设置中卸载
+- 资源管理器右键菜单：选中文件 / 文件夹即可原地解密（多选自动合并为一批），
+  独立的进度窗口可随时取消，完成后弹出结果提示，无需打开主界面
 
 ## 项目结构
 
 ```text
 DLP-Pass/
-├── main.py                  # 程序入口（启动界面 / --selftest 自检）
+├── main.py                  # 程序入口（界面 / 命令行分发）
 ├── dlp_pass/
 │   ├── config.py            # 应用配置与内置兜底映射规则
+│   ├── cli.py               # 无界面命令行（--decrypt / --selftest，右键菜单调用）
+│   ├── logging_setup.py     # 图形界面与命令行共用的日志初始化
 │   ├── core/                # 解密业务逻辑（与界面完全解耦，可独立复用）
 │   │   ├── mapping_loader.py    # mappings/ 版本化映射加载（取最新版）
 │   │   ├── output_mode.py       # 输出模式：原地覆盖 / 指定目录（目录校验 + 任务编排）
@@ -76,13 +82,16 @@ DLP-Pass/
 │   │   └── file_collector.py bundle.py models.py  # 遍历/资源定位/数据结构
 │   └── ui_qt/               # Qt 深色界面
 │       ├── qt_compat.py         # PyQt6/PyQt5 绑定兼容层
-│       ├── app.py               # 应用装配、日志、--selftest
+│       ├── app.py               # 应用装配与日志
 │       ├── main_window.py       # 主窗口与交互流程
+│       ├── progress.py          # 右键菜单独立进度窗口（不打开主界面）
 │       └── widgets.py theme.py workers.py  # 控件 / 主题 / QThread 后台任务
 ├── mappings/                # ★ 映射数据：每文件一个版本（见目录内 README）
 ├── packaging/               # 构建脚本与打包输入
-│   ├── build_exe.py             # 现代版构建流水线
-│   ├── build_exe_win7.py        # Win7 兼容版构建流水线
+│   ├── build_exe.py             # 现代版目录构建流水线
+│   ├── build_exe_win7.py        # Win7 兼容版目录构建流水线
+│   ├── installer.nsi            # NSIS 安装包脚本（右键菜单 / 安装 / 卸载）
+│   ├── build_installer.ps1      # 读取版本号并调用 makensis 的构建脚本
 │   └── writer_stub.py           # 伪装进程源码模板（构建输入，不参与运行时导入）
 ├── .github/workflows/     # CI：打 tag 自动构建并发布 Release（更新说明取自 CHANGELOG.md）
 ├── tests/                 # 单元测试（标准库 unittest，无第三方依赖）
@@ -137,6 +146,40 @@ python main.py            :: 启动界面
 python main.py --selftest <加密文件>   :: 无界面自检（退出码 0=成功）
 ```
 
+## 命令行与资源管理器右键菜单
+
+除图形界面外，exe 还提供无界面命令行（发布版为 `--noconsole`，过程与结果写入
+`<安装目录>\logs\dlp_pass.log`；源码运行时写入 `<项目根目录>\logs\dlp_pass.log`；程序
+目录不可写时回退到 `%LOCALAPPDATA%\DLP-Pass\logs\dlp_pass.log`）：
+
+```bat
+:: 原地解密覆盖（独立进度窗口；先校验为明文再替换，失败时原文件保持不变）
+DLP-Pass.exe --decrypt --in-place --progress --notify "D:\资料\a.docx" "D:\资料\b.pdf"
+
+:: 输出到指定目录（保留文件夹的相对目录结构）
+DLP-Pass.exe --decrypt --output-dir "D:\解密输出" "D:\资料"
+
+:: 不指定 --in-place / --output-dir 时，输出到 config.json 的 default_output_dir
+DLP-Pass.exe --decrypt "D:\资料"
+```
+
+常用参数：`--include-plain` 连未检测到加密标识的文件也导出；`--progress` 打开独立的
+进度窗口（不打开主界面，可取消）；`--notify` 结束后弹结果框；`--confirm` 开始前弹确认框；
+`--shell-batch` 汇总资源管理器多选产生的多个进程。选项与路径可以混排。退出码：`0` 全部
+成功（跳过未加密文件不算失败）、`1` 存在失败 / 路径缺失 / 输出冲突、`2` 参数或输出目录无效。
+
+安装包注册的右键菜单命令为：
+
+```text
+"<安装目录>\DLP-Pass.exe" --in-place --progress --notify --shell-batch --decrypt "%1"
+```
+
+Windows 对多选文件通常会逐项启动菜单命令；`--shell-batch` 通过本机命名管道把同一批次的
+路径汇总到首个进程，只执行一次解密、只显示一个进度窗口。扫描阶段显示不确定进度，解密
+阶段显示 `已完成 / 总数`；点击「取消」会在当前文件处理完成后停止。结束后弹出成功 / 失败
+汇总提示，不会打开主界面。右键菜单注册在 `HKCU\Software\Classes` 下，覆盖**文件**、
+**文件夹**和**文件夹空白处**三种上下文；Windows 11 中该菜单位于「显示更多选项」里。
+
 ## 构建发布
 
 ### CI 自动构建（推荐）
@@ -150,7 +193,7 @@ git push origin v2.3.1
 
 GitHub Actions（`.github/workflows/release.yml`）会自动：在官方 Windows runner 上
 分别构建现代版与 Win7 兼容版（各跑一遍单元测试 + `--selftest` 冒烟），
-然后创建同名 Release，附上两个 exe 与 `SHA256SUMS.txt`。
+再调用 NSIS 生成安装包，然后创建同名 Release，附上两个安装包与 `SHA256SUMS.txt`。
 
 Release 正文（更新说明）取自 [`CHANGELOG.md`](./CHANGELOG.md) 中对应版本的段落，
 并保留 `**Full Changelog**` 链接，因此发布前先在该文件补写本版本说明即可。
@@ -158,17 +201,74 @@ Release 正文（更新说明）取自 [`CHANGELOG.md`](./CHANGELOG.md) 中对�
 ### 本地构建
 
 ```bat
-:: 现代版（Windows 10/11）—— 主虚拟环境
+:: 现代版（Windows 10/11，onedir）—— 主虚拟环境
 .venv\Scripts\python.exe packaging\build_exe.py
+:: 产物：packaging\dist\DLP-Pass\DLP-Pass.exe
 
-:: Win7 兼容版（Windows 7 SP1+）—— 需要 Python 3.8 专用虚拟环境
+:: Win7 兼容版（Windows 7 SP1+，onedir）—— 需要 Python 3.8 专用虚拟环境
 E:\Python38\python.exe -m venv .venv38
 .venv38\Scripts\python.exe -m pip install -r requirements-win7.txt
 .venv38\Scripts\python.exe packaging\build_exe_win7.py
+:: 产物：packaging\dist\DLP-Pass-Win7\DLP-Pass-Win7.exe
 ```
 
-两条流水线均为标准 PyInstaller 单文件打包，**不做任何代码加密/混淆**；
-构建输出包含产物 SHA256，可直接用于发布说明。
+两条流水线均为标准 PyInstaller 目录版（`--onedir`）打包，**不做任何代码加密/混淆**；
+构建输出包含产物目录与 exe SHA256，可直接用于发布说明。目录版启动时无需把整个运行
+环境解压到 `%TEMP%`，也适合右键菜单这种短生命周期调用。
+
+### 制作 NSIS 安装包
+
+前置条件：已安装 **NSIS 3**（`makensis.exe` 位于 PATH 或常见安装目录），并已生成
+`packaging\dist\DLP-Pass\DLP-Pass.exe`（或
+`packaging\dist\DLP-Pass-Win7\DLP-Pass-Win7.exe`）。
+
+```bat
+:: 现代版安装包（默认使用 dist\DLP-Pass 目录）
+powershell -ExecutionPolicy Bypass -File packaging\build_installer.ps1
+
+:: Win7 兼容版安装包（使用 dist\DLP-Pass-Win7 目录）
+powershell -ExecutionPolicy Bypass -File packaging\build_installer.ps1 -AppDir DLP-Pass-Win7 -AppExe DLP-Pass-Win7.exe
+```
+
+脚本会从 `dlp_pass\__init__.py` 读取版本号，输出
+`packaging\dist\DLP-Pass-Setup-<版本>.exe`。也可以手动编译：
+
+```bat
+cd packaging
+"D:\Program Files (x86)\NSIS\makensis.exe" /DAPP_VERSION=2.3.2 /DAPP_DIR=DLP-Pass installer.nsi
+```
+
+安装包默认安装到 **`C:\Program Files\DLP-Pass`**（需要管理员权限，目录页可修改），
+递归复制 onedir 产物、`mappings/`、README / LICENSE / CHANGELOG，创建桌面和开始菜单
+快捷方式及 `logs/` 目录，并在组件页提供「资源管理器右键菜单」选项。右键菜单、快捷方式
+和卸载信息写入当前用户 HKCU；`logs/` 会单独授予 Users 修改权限，保证非提升权限的
+右键解密也能写日志，授权失败时程序回退到 `%LOCALAPPDATA%`。Win7 版安装后会把
+`DLP-Pass-Win7.exe` 重命名为统一的 `DLP-Pass.exe`。卸载会删除右键菜单、桌面 / 开始菜单
+快捷方式和整个安装目录。若之前安装过旧的 per-user 版本，建议先卸载旧版再安装，避免
+同时存在两份程序。
+
+验证安装与右键菜单：
+
+```powershell
+# 1. 检查安装目录、桌面快捷方式、日志目录和右键菜单命令
+$install = (Get-ItemProperty -LiteralPath 'HKCU:\Software\DLP-Pass').InstallDir
+Get-ChildItem -LiteralPath $install
+Get-Item -LiteralPath (Join-Path ([Environment]::GetFolderPath('Desktop')) 'DLP-Pass.lnk')
+Get-ChildItem -LiteralPath (Join-Path $install 'logs')
+Get-ItemProperty -LiteralPath 'HKCU:\Software\Classes\*\shell\DLPPass.Decrypt\command'
+Get-ItemProperty -LiteralPath 'HKCU:\Software\Classes\Directory\shell\DLPPass.Decrypt\command'
+
+# 2. 检查卸载信息
+Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\DLP-Pass'
+
+# 3. 静默安装 / 卸载（测试用；/D= 必须是最后一个参数）
+& "$env:TEMP\DLP-Pass-Setup-2.3.2.exe" /S "/D=$env:TEMP\DLP-Pass-Test"
+& "$env:TEMP\DLP-Pass-Test\Uninstall.exe" /S
+```
+
+安装后右键选中一个或多个加密文件（或文件夹），选择「使用 DLP-Pass 解密」即可。
+若菜单未立即出现，重启资源管理器或在任务管理器中重启 `explorer.exe`；
+失败详情见 `<安装目录>\logs\dlp_pass.log`。
 
 ## 开发约定
 
@@ -185,17 +285,18 @@ E:\Python38\python.exe -m venv .venv38
 
 - 完全离线：无数据库、无任何网络请求（可自行核验依赖清单）；
 - 代码明文打包进发布物（标准 PyInstaller），可反编译审计——这正是开源的意义；
-- 日志与解密过程只写入本机（`%LOCALAPPDATA%\DLP-Pass\logs`）。
+- 日志与解密过程只写入本机（安装版为 `<安装目录>\logs`，源码运行为 `<项目根目录>\logs`；
+  程序目录不可写时回退到 `%LOCALAPPDATA%\DLP-Pass\logs`）。
 
 ## 常见问题
 
 - **Windows 7 提示 `python314.dll` / `LoadLibrary 找不到指定的模块`** —— 那是现代版
-  （Python 3.14/Qt6 要求 Win10+）；Win7 请用 `DLP-Pass-Win7.exe`。
+  （Python 3.14/Qt6 要求 Win10+）；Win7 请安装 `DLP-Pass-Setup-<版本>-Win7.exe`。
 - **顶部徽标显示「映射规则 内置兜底」** —— `mappings/` 目录缺失或内容不可用，
   核心解密仍可用（兜底规则），按目录内 README 补充即可。
 - **导出后校验仍为密文** —— 当前 DLP 策略未信任所使用的伪装进程名，
   请换用/增补白名单进程映射（见 `mappings/README.md`）。
-- **首次启动稍慢** —— 单文件程序首次运行需解压运行环境（数秒），属正常。
+- **首次启动稍慢** —— 目录版无需解压运行环境；首次运行仍可能因杀毒软件扫描而稍慢。
 
 ## 许可
 

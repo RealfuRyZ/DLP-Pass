@@ -23,6 +23,7 @@ IS_QT6 = QT_BINDING == "PyQt6"
 
 # ---------------------------------------------------------------- QtCore
 Qt = QtCore.Qt
+QObject = QtCore.QObject
 QTimer = QtCore.QTimer
 QThread = QtCore.QThread
 pyqtSignal = QtCore.pyqtSignal
@@ -48,6 +49,7 @@ QLineEdit = QtWidgets.QLineEdit
 QMainWindow = QtWidgets.QMainWindow
 QMessageBox = QtWidgets.QMessageBox
 QProgressBar = QtWidgets.QProgressBar
+QProgressDialog = QtWidgets.QProgressDialog
 QPushButton = QtWidgets.QPushButton
 QRadioButton = QtWidgets.QRadioButton
 QSizePolicy = QtWidgets.QSizePolicy
