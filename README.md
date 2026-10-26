@@ -60,7 +60,8 @@ DLP-Pass 是一个**核心解密完全离线**的 Windows 桌面工具：把被 
 - 拖拽文件 / 文件夹批量解密，保留原有目录结构，自动跳过未加密文件
 - **两种解密输出方式**：「输出到指定目录」（原始文件保持不变）或「原地解密覆盖」
   （解密结果直接替换原文件；先校验为明文再覆盖，校验失败时原文件完整保留）
-- 现代化深色界面：任务列表、实时日志、进度条、状态徽标与统计卡片（PyQt6 / PyQt5 双绑定同一套代码）
+- 现代化亮/暗双主题界面：任务列表、实时日志、进度条、状态徽标与统计卡片（PyQt6 / PyQt5
+  双绑定同一套代码）；顶栏映射规则版本号左侧可一键切换配色方案，偏好自动持久化
 - 自动密文检测与导出结果校验（确保最终输出为明文）
 - 版本化本地映射数据（`mappings/` 目录，启动时始终读取最新版本，改映射无需重装）
 - 目录版安装包（`--onedir`）：内置全部运行环境，安装后启动快，可在系统设置中卸载
@@ -68,7 +69,8 @@ DLP-Pass 是一个**核心解密完全离线**的 Windows 桌面工具：把被 
   独立的进度窗口可随时取消，完成后弹出结果提示，无需打开主界面
 - 统一程序 Logo：标题栏、任务栏、窗口顶部与安装包图标均使用 `assets/logo.*`
 - 启动时检查 GitHub Release：已是最新时版本号绿色显示；有新版本时版本号红色并显示
-  「有新版本可用」，点击直达 Release 页面；网络失败 / 超时则仅显示当前版本
+  「有新版本可用」，点击直达 Release 页面；鼠标悬浮版本号显示检查结果
+  （「当前为最新版本」/「有新版本可用 vX.X.X」）；网络失败 / 超时则仅显示当前版本
   （版本源为 GitHub `releases/latest` API，超时 4 秒，可通过 `check_updates: false` 关闭）
 
 ## 项目结构
@@ -88,7 +90,7 @@ DLP-Pass/
 │   │   ├── verifier.py          # 密文检测（PowerShell 非白名单视角）
 │   │   ├── writer_factory.py    # 伪装进程模板释放与构建
 │   │   └── file_collector.py bundle.py models.py  # 遍历/资源定位/数据结构
-│   └── ui_qt/               # Qt 深色界面
+│   └── ui_qt/               # Qt 界面（暗色 / 亮色双主题，settings.py 持久化偏好）
 │       ├── qt_compat.py         # PyQt6/PyQt5 绑定兼容层
 │       ├── app.py               # 应用装配与日志
 │       ├── main_window.py       # 主窗口与交互流程
@@ -197,8 +199,8 @@ Windows 对多选文件通常会逐项启动菜单命令；`--shell-batch` 通�
 发布新版本只需打标签：
 
 ```bat
-git tag v2.4.0
-git push origin v2.4.0
+git tag v2.4.1
+git push origin v2.4.1
 ```
 
 GitHub Actions（`.github/workflows/release.yml`）会自动：在官方 Windows runner 上
@@ -255,7 +257,7 @@ powershell -ExecutionPolicy Bypass -File packaging\build_installer.ps1 -AppDir D
 
 ```bat
 cd packaging
-"D:\Program Files (x86)\NSIS\makensis.exe" /DAPP_VERSION=2.4.0 /DAPP_DIR=DLP-Pass installer.nsi
+"D:\Program Files (x86)\NSIS\makensis.exe" /DAPP_VERSION=2.4.1 /DAPP_DIR=DLP-Pass installer.nsi
 ```
 
 安装包默认安装到 **`C:\Program Files\DLP-Pass`**（需要管理员权限，目录页可修改），
@@ -283,7 +285,7 @@ Get-ItemProperty -LiteralPath 'HKCU:\Software\Classes\Directory\shell\DLPPass.De
 Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\DLP-Pass'
 
 # 3. 静默安装 / 卸载（测试用；/D= 必须是最后一个参数）
-& "$env:TEMP\DLP-Pass-Setup-2.4.0.exe" /S "/D=$env:TEMP\DLP-Pass-Test"
+& "$env:TEMP\DLP-Pass-Setup-2.4.1.exe" /S "/D=$env:TEMP\DLP-Pass-Test"
 & "$env:TEMP\DLP-Pass-Test\Uninstall.exe" /S
 ```
 

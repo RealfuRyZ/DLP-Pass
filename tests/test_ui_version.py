@@ -38,6 +38,7 @@ class VersionUiTest(unittest.TestCase):
         self.window._on_version_checked(dlp_pass.__version__)
         self.assertIn(theme.COLORS["success"], self.window._version_label.styleSheet())
         self.assertTrue(self.window._update_hint.isHidden())
+        self.assertEqual(self.window._version_label.toolTip(), "当前为最新版本")
 
     def test_newer_version_is_red_and_clickable(self) -> None:
         self.window._on_version_checked("v99.0.0")
@@ -46,11 +47,13 @@ class VersionUiTest(unittest.TestCase):
         text = self.window._update_hint.text()
         self.assertIn("有新版本可用", text)
         self.assertIn(RELEASE_PAGE_URL, text)
+        self.assertEqual(self.window._version_label.toolTip(), "有新版本可用 v99.0.0")
 
     def test_failed_check_restores_default_appearance(self) -> None:
         self.window._on_version_checked("v99.0.0")
         self.window._on_version_check_failed()
         self.assertEqual(self.window._version_label.styleSheet(), "")
+        self.assertEqual(self.window._version_label.toolTip(), "")
         self.assertTrue(self.window._update_hint.isHidden())
 
 

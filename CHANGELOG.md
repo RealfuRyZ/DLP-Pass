@@ -3,6 +3,24 @@
 本文件记录 DLP-Pass 的版本变更。版本号遵循语义化版本，映射数据版本另见 `mappings/`。
 每个版本的说明会由 CI（`.github/workflows/release.yml`）自动摘录到对应的 GitHub Release 正文。
 
+## 2.4.1 (2026-10-26)
+
+### 新增功能
+
+- **暗色 / 亮色主题切换**：主界面顶栏「映射规则版本号」徽标左侧新增主题切换按钮，
+  点击即时切换整个界面配色方案（背景、文字、边框、徽标、表格、滚动条等全部视觉元素），
+  偏好持久化到 `%LOCALAPPDATA%\DLP-Pass\settings.json`，下次启动自动恢复（默认暗色）。
+- **版本号悬浮提示**：鼠标悬浮在顶栏版本号上显示版本检查结果——已是最新时提示
+  「当前为最新版本」，存在更新时提示「有新版本可用 vX.X.X」；检查失败（网络不可用）
+  时不显示提示，保持静默降级。
+- **进程映射扩充** `mappings/20261026.1.json`：在 `20261016.1` 全部 153 条原样保留的基础上
+  追加 53 条（共 206 条），覆盖文档/标记（.md/.markdown/.rst/.tex）、数据库
+  （.db/.sqlite/.sqlite3/.sql/.mdb/.mdf/.ldf）、编程语言（.go/.rs/.rb/.php/.c/.h/.css/
+  .html/.ts/.swift/.kt）、配置与脚本（.yaml/.yml/.toml/.ini/.cfg/.conf/.bat/.cmd/.ps1/.sh）、
+  3D/CAD 通用交换格式（.stl/.obj/.fbx/.gltf/.glb/.step/.stp/.iges/.igs）、音视频
+  （.mp4/.avi/.mkv/.mov/.mp3/.flac/.wav）与字体（.ttf/.otf/.ttc/.woff/.woff2）常见后缀
+  → 白名单伪装进程队列；字段结构与排序方式和既有版本一致，程序启动时自动读取本版本生效。
+
 ## 2.4.0 (2026-10-24)
 
 ### 新增功能

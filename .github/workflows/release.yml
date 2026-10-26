@@ -1,4 +1,4 @@
-# 发布构建：推送任意 v 开头的标签（如 v2.4.0）即自动触发。
+# 发布构建：推送任意 v 开头的标签（如 v2.4.1）即自动触发。
 # 在 GitHub 官方 Windows runner 上构建 onedir 程序、NSIS 安装包与单文件绿色版，自动创建 Release。
 name: Release build
 

@@ -16,6 +16,7 @@ from pathlib import Path
 
 from .qt_compat import (
     QAbstractItemView,
+    QApplication,
     QButtonGroup,
     QCheckBox,
     QColor,
@@ -48,7 +49,7 @@ from ..core.source_reader import SourceReader
 from ..core.verifier import EncryptionVerifier
 from ..core.writer_factory import DisguisedWriterFactory
 from ..version_check import RELEASE_PAGE_URL, is_newer
-from . import theme
+from . import settings, theme
 from .assets import app_icon, logo_pixmap
 from .widgets import Card, DropZone, LogPanel, StatCard, StatusBadge, format_size
 from .workers import DecryptWorker, ScanWorker, VersionCheckTask
@@ -119,6 +120,10 @@ class MainWindow(QMainWindow):
         self._version_task: VersionCheckTask | None = None
         self._pending_scan_paths: list[list[str]] = []
         self._running = False
+        # 版本检查结果状态（"update" / "latest" / None=未检查或检查失败）
+        # 用于主题切换时重新渲染版本号的配色与悬浮提示。
+        self._version_status: str | None = None
+        self._version_latest: str = ""
 
         # 统计/开始按钮的合并刷新（避免逐个文件 O(n) 刷新导致大批量卡顿）
         self._ui_refresh_timer = QTimer(self)
@@ -204,10 +209,18 @@ class MainWindow(QMainWindow):
 
         self._mapping_badge = StatusBadge("映射规则 —", "idle")
 
+        # 主题切换按钮：位于「映射规则版本号」徽标左侧
+        self._theme_button = QPushButton()
+        self._theme_button.setObjectName("ThemeButton")
+        self._theme_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._theme_button.clicked.connect(self._on_theme_toggled)
+        self._update_theme_button()
+
         layout.addWidget(title)
         layout.addWidget(self._version_label)
         layout.addWidget(self._update_hint)
         layout.addStretch(1)
+        layout.addWidget(self._theme_button)
         layout.addWidget(self._mapping_badge)
         return bar
 
@@ -223,31 +236,90 @@ class MainWindow(QMainWindow):
 
     def _on_version_checked(self, latest: str) -> None:
         if is_newer(latest, dlp_pass.__version__):
+            self._version_status = "update"
+            self._version_latest = latest.lstrip("vV")
             color = theme.COLORS["danger"]
             self._version_label.setStyleSheet(f"color: {color};")
+            self._version_label.setToolTip(f"有新版本可用 v{self._version_latest}")
             self._update_hint.setText(
                 f'<a href="{RELEASE_PAGE_URL}" '
                 f'style="color: {color}; text-decoration: none;">有新版本可用</a>'
             )
             self._update_hint.setToolTip(
-                f"最新版本：{latest.lstrip('vV')}，点击打开 Release 页面"
+                f"最新版本：{self._version_latest}，点击打开 Release 页面"
             )
             self._update_hint.setVisible(True)
             _logger.info("检测到新版本：%s（当前 %s）", latest, dlp_pass.__version__)
         else:
+            self._version_status = "latest"
+            self._version_latest = ""
             self._version_label.setStyleSheet(f"color: {theme.COLORS['success']};")
+            self._version_label.setToolTip("当前为最新版本")
             self._update_hint.clear()
             self._update_hint.setToolTip("")
             self._update_hint.setVisible(False)
             _logger.info("当前版本已是最新：%s", dlp_pass.__version__)
 
     def _on_version_check_failed(self) -> None:
-        """版本源不可用：仅显示当前版本，不标色、不提示。"""
+        """版本源不可用：仅显示当前版本，不标色、不提示、无悬浮信息。"""
+        self._version_status = None
+        self._version_latest = ""
         self._version_label.setStyleSheet("")
+        self._version_label.setToolTip("")
         self._update_hint.clear()
         self._update_hint.setToolTip("")
         self._update_hint.setVisible(False)
         _logger.debug("版本检查失败，已静默降级")
+
+    # --------------------------------------------------------- 主题切换
+
+    def _on_theme_toggled(self) -> None:
+        """一键切换暗色 / 亮色配色并持久化用户偏好。"""
+        target = "light" if theme.active_theme() == "dark" else "dark"
+        theme.set_active_theme(target)
+        settings.save_theme(target)
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(theme.build_stylesheet())
+        self._refresh_theme_dependent_colors()
+        self._log_panel.add_entry(
+            "已切换到%s模式。" % ("暗色" if target == "dark" else "亮色"), "info"
+        )
+
+    def _update_theme_button(self) -> None:
+        """按当前主题刷新按钮文本与悬浮提示（文本显示当前模式）。"""
+        dark = theme.active_theme() == "dark"
+        self._theme_button.setText("暗色模式" if dark else "亮色模式")
+        self._theme_button.setToolTip("点击切换为亮色模式" if dark else "点击切换为暗色模式")
+
+    def _refresh_theme_dependent_colors(self) -> None:
+        """主题切换后刷新不走全局 QSS 的内联颜色（统计卡、版本号、彩色状态文本）。"""
+        self._update_theme_button()
+        self._stat_total.set_color(theme.COLORS["accent"])
+        self._stat_success.set_color(theme.COLORS["success"])
+        self._stat_failed.set_color(theme.COLORS["danger"])
+        self._stat_skipped.set_color(theme.COLORS["warning"])
+        if self._version_status == "update":
+            color = theme.COLORS["danger"]
+            self._version_label.setStyleSheet(f"color: {color};")
+            self._update_hint.setText(
+                f'<a href="{RELEASE_PAGE_URL}" '
+                f'style="color: {color}; text-decoration: none;">有新版本可用</a>'
+            )
+        elif self._version_status == "latest":
+            self._version_label.setStyleSheet(f"color: {theme.COLORS['success']};")
+        else:
+            self._version_label.setStyleSheet("")
+        for item_id, (mode, widget) in self._status_cells.items():
+            if mode != "item":  # 徽标控件由 QSS 动态属性驱动，重新 polish 即可
+                continue
+            entry = self._entries.get(item_id)
+            if entry is None:
+                continue
+            state = _STATUS_STATE.get(entry.status, "idle")
+            widget.setForeground(
+                QColor(theme.STATE_COLORS.get(state, theme.COLORS["text_muted"]))
+            )
 
     def _build_left_panel(self) -> QWidget:
         panel = QWidget()

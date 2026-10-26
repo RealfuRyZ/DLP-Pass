@@ -13,7 +13,7 @@
 ; 也能把日志写入安装目录。
 ;
 ; 编译（在 packaging 目录）：
-;   makensis /DAPP_VERSION=2.4.0 installer.nsi
+;   makensis /DAPP_VERSION=2.4.1 installer.nsi
 ;
 ; 可选编译参数：
 ;   /DAPP_DIR=DLP-Pass-Win7 /DAPP_EXE=DLP-Pass-Win7.exe
@@ -28,7 +28,7 @@ Unicode true
 !include "LogicLib.nsh"
 
 !ifndef APP_VERSION
-  !define APP_VERSION "2.4.0"
+  !define APP_VERSION "2.4.1"
 !endif
 !ifndef APP_DIR
   !define APP_DIR "DLP-Pass"

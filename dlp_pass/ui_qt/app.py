@@ -1,4 +1,4 @@
-"""应用入口：初始化 QApplication、深色主题与主窗口（PyQt6 / PyQt5 双兼容）。"""
+"""应用入口：初始化 QApplication、暗色/亮色主题与主窗口（PyQt6 / PyQt5 双兼容）。"""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import dlp_pass
 from ..config import load_runtime_config
 from ..core.mapping_loader import load_latest
 from ..logging_setup import setup_logging
-from . import theme
+from . import settings, theme
 from .assets import app_icon
 from .main_window import MainWindow
 from .qt_compat import QApplication, QFont, QMessageBox, prepare_high_dpi
@@ -55,6 +55,7 @@ def run() -> None:
     app.setApplicationVersion(dlp_pass.__version__)
     app.setWindowIcon(app_icon())
     app.setStyle("Fusion")
+    theme.set_active_theme(settings.load_theme())  # 恢复上次使用的配色（默认暗色）
     app.setFont(QFont(theme.FONT_FAMILY, 10))
     app.setStyleSheet(theme.build_stylesheet())
 

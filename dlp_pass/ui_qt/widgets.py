@@ -14,7 +14,6 @@ from .qt_compat import (
     QSizePolicy,
     Qt,
     QTextEdit,
-    QTimer,
     QVBoxLayout,
     QWidget,
     pyqtSignal,
@@ -165,16 +164,24 @@ class StatCard(QFrame):
     def set_value(self, value: int | str) -> None:
         self._value.setText(str(value))
 
+    def set_color(self, color: str) -> None:
+        """更新数值文本颜色（主题切换时按当前配色重新着色）。"""
+        self._value.setStyleSheet(f"color: {color};")
+
 
 class LogPanel(QTextEdit):
-    """实时日志面板：按级别着色高亮，自动滚动并限制最大行数。"""
+    """实时日志面板：按级别着色高亮，自动滚动并限制最大行数。
 
-    _LEVEL_COLORS = {
-        "info": theme.COLORS["text"],
-        "success": theme.COLORS["success"],
-        "warning": theme.COLORS["warning"],
-        "error": theme.COLORS["danger"],
-        "debug": theme.COLORS["text_faint"],
+    颜色在写入每条日志时从 :data:`theme.COLORS` 现取，主题切换后新日志自动
+    使用当前配色（已写入的历史行保持原色）。
+    """
+
+    _LEVEL_COLOR_KEYS = {
+        "info": "text",
+        "success": "success",
+        "warning": "warning",
+        "error": "danger",
+        "debug": "text_faint",
     }
 
     def __init__(self, parent: QWidget | None = None):
@@ -186,7 +193,7 @@ class LogPanel(QTextEdit):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     def add_entry(self, message: str, level: str = "info") -> None:
-        color = self._LEVEL_COLORS.get(level, self._LEVEL_COLORS["info"])
+        color = theme.COLORS[self._LEVEL_COLOR_KEYS.get(level, "info")]
         faint = theme.COLORS["text_faint"]
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         safe = html.escape(message).replace("\n", "<br>")

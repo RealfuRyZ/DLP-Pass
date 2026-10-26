@@ -1,20 +1,37 @@
-"""PyQt6 深色主题：调色板与全局样式表（QSS）。
+"""Qt 主题：暗色 / 亮色双调色板与全局样式表（QSS）。
 
-设计目标：深灰 / 暗蓝背景（#1E1E1E 系）+ 品牌蓝强调色，
-统一圆角、微阴影、悬停反馈与现代化状态徽标（Badge）。
+设计目标：深灰 / 暗蓝（#1E1E1E 系）与浅灰白（#F4F5F7 系）两套配色共用同一份
+模板化 QSS，仅替换颜色变量；切换主题后整个界面（背景、文字、边框、徽标等
+全部视觉元素）随之更新。品牌蓝强调色、统一圆角、微阴影、悬停反馈与状态徽标
+（Badge）风格在两套配色下保持一致。
+
+用法：
+- :func:`set_active_theme` 切换当前配色（``"dark"`` / ``"light"``），原地更新
+  :data:`COLORS` 与 :data:`STATE_COLORS`，调用方持有的模块引用随之生效；
+- :func:`build_stylesheet` 按当前配色生成全局样式表，配合
+  ``QApplication.setStyleSheet`` 应用；
+- 用户偏好持久化见 :mod:`dlp_pass.ui_qt.settings`。
 """
 
 from __future__ import annotations
 
 from string import Template
 
-COLORS = {
+# 两套调色板必须保持相同的键集合：QSS 模板与运行时取色都依赖这些键。
+DARK_COLORS = {
     "window": "#1E1E1E",
     "panel": "#26282D",
     "panel_alt": "#2B2E34",
     "elevated": "#31353C",
     "border": "#3A3F47",
     "border_soft": "#2F333A",
+    "border_strong": "#4A505A",
+    "pressed": "#24272C",
+    "table_alt": "#24262B",
+    "track": "#2A2D33",
+    "scroll_handle": "#43474F",
+    "scroll_handle_hover": "#555C66",
+    "drop_soft": "rgba(76, 141, 255, 0.04)",
     "text": "#E8EAED",
     "text_muted": "#9BA1AB",
     "text_faint": "#6E747E",
@@ -22,6 +39,8 @@ COLORS = {
     "accent_hover": "#6DA3FF",
     "accent_pressed": "#3C78E6",
     "accent_soft": "rgba(76, 141, 255, 0.16)",
+    "accent_disabled": "#3A4A66",
+    "accent_disabled_text": "#A9B6CC",
     "success": "#3FBF7F",
     "success_soft": "rgba(63, 191, 127, 0.16)",
     "danger": "#E5646C",
@@ -32,17 +51,87 @@ COLORS = {
     "info_soft": "rgba(86, 166, 240, 0.16)",
 }
 
+LIGHT_COLORS = {
+    "window": "#F4F5F7",
+    "panel": "#FFFFFF",
+    "panel_alt": "#EEF0F4",
+    "elevated": "#E6E8EE",
+    "border": "#D2D6DE",
+    "border_soft": "#E3E6EB",
+    "border_strong": "#BCC3CF",
+    "pressed": "#D5D9E1",
+    "table_alt": "#F2F3F7",
+    "track": "#DDE1E8",
+    "scroll_handle": "#C4C9D3",
+    "scroll_handle_hover": "#A6ADBB",
+    "drop_soft": "rgba(44, 111, 232, 0.06)",
+    "text": "#1F2328",
+    "text_muted": "#5A626E",
+    "text_faint": "#8A919D",
+    "accent": "#2C6FE8",
+    "accent_hover": "#1E5FD2",
+    "accent_pressed": "#1849AB",
+    "accent_soft": "rgba(44, 111, 232, 0.12)",
+    "accent_disabled": "#C3CFE6",
+    "accent_disabled_text": "#8B97B0",
+    "success": "#1E9E5E",
+    "success_soft": "rgba(30, 158, 94, 0.14)",
+    "danger": "#D6454F",
+    "danger_soft": "rgba(214, 69, 79, 0.13)",
+    "warning": "#B8791A",
+    "warning_soft": "rgba(184, 121, 26, 0.15)",
+    "info": "#2B7FD4",
+    "info_soft": "rgba(43, 127, 212, 0.14)",
+}
+
+VALID_THEMES = ("dark", "light")
+
+# 当前生效调色板：模块级字典原地更新，持有 theme.COLORS 引用的调用方即时生效
+COLORS = dict(DARK_COLORS)
+
 FONT_FAMILY = "Microsoft YaHei UI"
 
 # 状态徽标 state 取值 -> 文本颜色（大批量列表中用纯文本状态替代徽标控件时使用）
-STATE_COLORS = {
-    "idle": COLORS["text_muted"],
-    "accent": COLORS["accent"],
-    "info": COLORS["info"],
-    "success": COLORS["success"],
-    "warning": COLORS["warning"],
-    "danger": COLORS["danger"],
-}
+STATE_COLORS = {}
+
+_active_theme = "dark"
+
+
+def _apply_palette(palette: dict) -> None:
+    """把 ``palette`` 应用到当前配色，并重建派生的状态色表。"""
+    COLORS.clear()
+    COLORS.update(palette)
+    STATE_COLORS.clear()
+    STATE_COLORS.update(
+        {
+            "idle": COLORS["text_muted"],
+            "accent": COLORS["accent"],
+            "info": COLORS["info"],
+            "success": COLORS["success"],
+            "warning": COLORS["warning"],
+            "danger": COLORS["danger"],
+        }
+    )
+
+
+def active_theme() -> str:
+    """当前主题名：``"dark"`` 或 ``"light"``。"""
+    return _active_theme
+
+
+def set_active_theme(name: str) -> bool:
+    """切换当前配色；``name`` 仅接受 ``light``，其余值一律按 ``dark``。
+
+    返回是否发生了切换（目标主题与当前一致时返回 ``False``，不做任何改动）。
+    """
+    global _active_theme
+    normalized = "light" if str(name).strip().lower() == "light" else "dark"
+    if normalized == _active_theme:
+        return False
+    _active_theme = normalized
+    _apply_palette(LIGHT_COLORS if normalized == "light" else DARK_COLORS)
+    return True
+
 
 _QSS = Template(
     """
@@ -90,12 +179,15 @@ QPushButton {
     border-radius: 8px;
     padding: 7px 16px;
 }
-QPushButton:hover { background-color: $panel_alt; border-color: #4A505A; }
-QPushButton:pressed { background-color: #24272C; }
+QPushButton:hover { background-color: $panel_alt; border-color: $border_strong; }
+QPushButton:pressed { background-color: $pressed; }
 QPushButton:disabled { color: $text_faint; background-color: $panel; border-color: $border_soft; }
 
 QPushButton#GhostButton { background-color: transparent; border: 1px solid $border; }
 QPushButton#GhostButton:hover { background-color: $panel_alt; }
+
+QPushButton#ThemeButton { background-color: transparent; border: 1px solid $border; color: $text_muted; padding: 4px 12px; }
+QPushButton#ThemeButton:hover { color: $accent; border-color: $accent; background-color: $panel_alt; }
 
 QPushButton#StopButton { background-color: transparent; border: 1px solid $border; color: $text_muted; }
 QPushButton#StopButton:hover { color: $danger; border-color: $danger; }
@@ -108,7 +200,7 @@ QPushButton#PrimaryButton {
 }
 QPushButton#PrimaryButton:hover { background-color: $accent_hover; }
 QPushButton#PrimaryButton:pressed { background-color: $accent_pressed; }
-QPushButton#PrimaryButton:disabled { background-color: #3A4A66; color: #A9B6CC; }
+QPushButton#PrimaryButton:disabled { background-color: $accent_disabled; color: $accent_disabled_text; }
 
 /* ---------- 输入控件 ---------- */
 QLineEdit {
@@ -116,7 +208,7 @@ QLineEdit {
     border: 1px solid $border; border-radius: 8px;
     padding: 7px 10px; selection-background-color: $accent;
 }
-QLineEdit:hover { border-color: #4A505A; }
+QLineEdit:hover { border-color: $border_strong; }
 QLineEdit:focus { border-color: $accent; }
 
 QSpinBox, QDoubleSpinBox {
@@ -154,9 +246,9 @@ QLabel#DropHint[mode="inplace"] { color: $warning; }
 
 /* ---------- 拖拽区 ---------- */
 QFrame#DropZone {
-    border: 2px dashed #4A505A;
+    border: 2px dashed $border_strong;
     border-radius: 14px;
-    background-color: rgba(76, 141, 255, 0.04);
+    background-color: $drop_soft;
 }
 QFrame#DropZone[active="true"] {
     border-color: $accent;
@@ -169,7 +261,7 @@ QLabel#DropHint { color: $text_muted; font-size: 9pt; }
 /* ---------- 表格 ---------- */
 QTableWidget {
     background-color: $panel;
-    alternate-background-color: #24262B;
+    alternate-background-color: $table_alt;
     border: none;
     gridline-color: $border_soft;
     border-radius: 8px;
@@ -185,7 +277,7 @@ QTableCornerButton::section { background-color: $panel; border: none; }
 
 /* ---------- 进度条 ---------- */
 QProgressBar {
-    background-color: #2A2D33; border: none; border-radius: 6px;
+    background-color: $track; border: none; border-radius: 6px;
     height: 12px; text-align: center; color: $text_muted; font-size: 9pt;
 }
 QProgressBar::chunk { background-color: $accent; border-radius: 6px; }
@@ -209,11 +301,11 @@ QLabel#StatCaption { color: $text_muted; font-size: 9pt; }
 
 /* ---------- 滚动条 ---------- */
 QScrollBar:vertical { background: transparent; width: 10px; margin: 2px; }
-QScrollBar::handle:vertical { background: #43474F; border-radius: 5px; min-height: 30px; }
-QScrollBar::handle:vertical:hover { background: #555C66; }
+QScrollBar::handle:vertical { background: $scroll_handle; border-radius: 5px; min-height: 30px; }
+QScrollBar::handle:vertical:hover { background: $scroll_handle_hover; }
 QScrollBar:horizontal { background: transparent; height: 10px; margin: 2px; }
-QScrollBar::handle:horizontal { background: #43474F; border-radius: 5px; min-width: 30px; }
-QScrollBar::handle:horizontal:hover { background: #555C66; }
+QScrollBar::handle:horizontal { background: $scroll_handle; border-radius: 5px; min-width: 30px; }
+QScrollBar::handle:horizontal:hover { background: $scroll_handle_hover; }
 QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
 QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
 
@@ -234,7 +326,10 @@ QMessageBox { background-color: $panel; }
 
 
 def build_stylesheet() -> str:
-    """生成全局样式表（深色主题）。"""
+    """按当前生效调色板生成全局样式表。"""
     values = dict(COLORS)
     values["font"] = FONT_FAMILY
     return _QSS.substitute(values)
+
+
+_apply_palette(DARK_COLORS)

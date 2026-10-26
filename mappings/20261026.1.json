@@ -1,0 +1,2033 @@
+{
+  "version": "20261026.1",
+  "updated": "2026-10-26",
+  "description": "在 20261016.1 全部条目原样保留的基础上追加 53 条映射：文档/标记（.md/.markdown/.rst/.tex）、数据库（.db/.sqlite/.sqlite3/.sql/.mdb/.mdf/.ldf）、编程语言（.go/.rs/.rb/.php/.c/.h/.css/.html/.ts/.swift/.kt）、配置与脚本（.yaml/.yml/.toml/.ini/.cfg/.conf/.bat/.cmd/.ps1/.sh）、3D/CAD 通用交换格式（.stl/.obj/.fbx/.gltf/.glb/.step/.stp/.iges/.igs）、音视频（.mp4/.avi/.mkv/.mov/.mp3/.flac/.wav）、字体（.ttf/.otf/.ttc/.woff/.woff2）。字段结构与排序方式与既有版本一致，程序启动时自动读取本版本生效。",
+  "rules": [
+    {
+      "extension": ".3dm",
+      "primary": "Rhino",
+      "alternatives": [
+        "SketchUp",
+        "acad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".3ds",
+      "primary": "3dsmax",
+      "alternatives": [
+        "blender",
+        "maya"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".accdb",
+      "primary": "msaccess",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".aedt",
+      "primary": "AnsysEM",
+      "alternatives": [
+        "AnsysWBU",
+        "ansys"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".aep",
+      "primary": "AfterEffects",
+      "alternatives": [
+        "PremierePro",
+        "photoshop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".aet",
+      "primary": "AfterEffects",
+      "alternatives": [
+        "PremierePro",
+        "photoshop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".afdesign",
+      "primary": "AffinityDesigner",
+      "alternatives": [
+        "AffinityPhoto",
+        "illustrator"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".afphoto",
+      "primary": "AffinityPhoto",
+      "alternatives": [
+        "photoshop",
+        "AffinityDesigner"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".afpub",
+      "primary": "AffinityPublisher",
+      "alternatives": [
+        "InDesign",
+        "AffinityDesigner"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ai",
+      "primary": "illustrator",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ait",
+      "primary": "illustrator",
+      "alternatives": [
+        "InDesign",
+        "CorelDRW"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".apr",
+      "primary": "Archicad",
+      "alternatives": [
+        "Revit",
+        "BIMx"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".aras",
+      "primary": "aras",
+      "alternatives": [
+        "innovator",
+        "windchill"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".asm",
+      "primary": "xtop",
+      "alternatives": [
+        "ugraf"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".avi",
+      "primary": "vlc",
+      "alternatives": [
+        "PotPlayer",
+        "mpc-hc"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".bat",
+      "primary": "cmd",
+      "alternatives": [
+        "notepad++",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".bdf",
+      "primary": "patran",
+      "alternatives": [
+        "nastran",
+        "AbaqusCAE"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".blend",
+      "primary": "blender",
+      "alternatives": [
+        "maya",
+        "3dsmax"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".blend1",
+      "primary": "blender",
+      "alternatives": [
+        "maya",
+        "3dsmax"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".brd",
+      "primary": "pcbexe",
+      "alternatives": [
+        "pad",
+        "altium"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".c",
+      "primary": "devenv",
+      "alternatives": [
+        "CLion",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cae",
+      "primary": "AbaqusCAE",
+      "alternatives": [
+        "abq",
+        "hypermesh"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".catalog",
+      "primary": "CNEXT",
+      "alternatives": [
+        "cnext",
+        "acad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".catdrawing",
+      "primary": "CNEXT",
+      "alternatives": [
+        "cnext",
+        "tns"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".catpart",
+      "primary": "CNEXT",
+      "alternatives": [
+        "cnext",
+        "tns"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".catproduct",
+      "primary": "CNEXT",
+      "alternatives": [
+        "cnext",
+        "tns"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cdl",
+      "primary": "virtuoso",
+      "alternatives": [
+        "spectre",
+        "alps",
+        "hspice"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cdr",
+      "primary": "coreldrw",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cdt",
+      "primary": "CorelDRW",
+      "alternatives": [
+        "visio",
+        "illustrator"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cfg",
+      "primary": "notepad",
+      "alternatives": [
+        "notepad++",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ckd",
+      "primary": "chuangkit",
+      "alternatives": [
+        "jsdesign",
+        "pixso"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".clr",
+      "primary": "ugraf",
+      "alternatives": [
+        "snx",
+        "xtop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cmd",
+      "primary": "cmd",
+      "alternatives": [
+        "notepad++",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cmx",
+      "primary": "CorelDRW",
+      "alternatives": [
+        "illustrator",
+        "visio"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".conf",
+      "primary": "notepad",
+      "alternatives": [
+        "notepad++",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cpp",
+      "primary": "devenv",
+      "alternatives": [
+        "clion",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".cs",
+      "primary": "devenv",
+      "alternatives": [
+        "rider",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".css",
+      "primary": "code",
+      "alternatives": [
+        "WebStorm",
+        "notepad++"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ctb",
+      "primary": "acad",
+      "alternatives": [
+        "zwcad",
+        "caxa"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dax",
+      "primary": "ugraf",
+      "alternatives": [
+        "snx",
+        "xtop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".db",
+      "primary": "DBBrowserForSQLite",
+      "alternatives": [
+        "DBeaver",
+        "PyCharm"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dgn",
+      "primary": "ustn",
+      "alternatives": [
+        "MicroStationCE",
+        "acad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dgnlib",
+      "primary": "ustn",
+      "alternatives": [
+        "MicroStationCE",
+        "acad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".doc",
+      "primary": "winword",
+      "alternatives": [
+        "wps",
+        "kwps"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".docx",
+      "primary": "winword",
+      "alternatives": [
+        "wps",
+        "kwps"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dps",
+      "primary": "wpp",
+      "alternatives": [
+        "powerpnt"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".drp",
+      "primary": "Resolve",
+      "alternatives": [
+        "PremierePro",
+        "AfterEffects"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".drw",
+      "primary": "xtop",
+      "alternatives": [
+        "ugraf",
+        "SLDWORKS"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dwf",
+      "primary": "acad",
+      "alternatives": [
+        "AcroRd32",
+        "FoxitPDF"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dwg",
+      "primary": "acad",
+      "alternatives": [
+        "caxa",
+        "icad",
+        "zwcad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dws",
+      "primary": "acad",
+      "alternatives": [
+        "zwcad",
+        "caxa"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dwt",
+      "primary": "acad",
+      "alternatives": [
+        "zwcad",
+        "caxa",
+        "icad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dxf",
+      "primary": "acad",
+      "alternatives": [
+        "caxa",
+        "zwcad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".dyn",
+      "primary": "lsdyna",
+      "alternatives": [
+        "nastran",
+        "abq"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".eddx",
+      "primary": "edraw",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".eps",
+      "primary": "illustrator",
+      "alternatives": [
+        "photoshop",
+        "CorelDRW"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".et",
+      "primary": "et",
+      "alternatives": [
+        "excel"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".exb",
+      "primary": "caxa",
+      "alternatives": [
+        "zwcad",
+        "acad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".fbx",
+      "primary": "maya",
+      "alternatives": [
+        "3dsmax",
+        "blender",
+        "Unity"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".fem",
+      "primary": "hypermesh",
+      "alternatives": [
+        "patran",
+        "nastran"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".fig",
+      "primary": "Figma",
+      "alternatives": [
+        "Sketch",
+        "jsdesign"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".flac",
+      "primary": "foobar2000",
+      "alternatives": [
+        "vlc",
+        "audacity"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".gdd",
+      "primary": "gaodingsh",
+      "alternatives": [
+        "chuangkit",
+        "edraw"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".glb",
+      "primary": "blender",
+      "alternatives": [
+        "code",
+        "Windows3DViewer"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".gltf",
+      "primary": "blender",
+      "alternatives": [
+        "code",
+        "Windows3DViewer"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".go",
+      "primary": "GoLand",
+      "alternatives": [
+        "code",
+        "sublime_text"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".h",
+      "primary": "devenv",
+      "alternatives": [
+        "CLion",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".hm",
+      "primary": "hypermesh",
+      "alternatives": [
+        "hmopengl",
+        "OptiStruct"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".html",
+      "primary": "code",
+      "alternatives": [
+        "WebStorm",
+        "notepad++"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".iam",
+      "primary": "Inventor",
+      "alternatives": [
+        "InventorServer",
+        "SLDWORKS"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ifc",
+      "primary": "Revit",
+      "alternatives": [
+        "Archicad",
+        "Navisworks"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".iges",
+      "primary": "CNEXT",
+      "alternatives": [
+        "SLDWORKS",
+        "Rhino"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".igs",
+      "primary": "CNEXT",
+      "alternatives": [
+        "SLDWORKS",
+        "Rhino"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".indd",
+      "primary": "InDesign",
+      "alternatives": [
+        "InCopy",
+        "photoshop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".indl",
+      "primary": "InDesign",
+      "alternatives": [
+        "InCopy",
+        "photoshop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".indt",
+      "primary": "InDesign",
+      "alternatives": [
+        "InCopy",
+        "illustrator"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ini",
+      "primary": "notepad",
+      "alternatives": [
+        "notepad++",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".inp",
+      "primary": "AbaqusCAE",
+      "alternatives": [
+        "abq",
+        "comsol"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".inx",
+      "primary": "InDesign",
+      "alternatives": [
+        "InCopy",
+        "illustrator"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ipt",
+      "primary": "Inventor",
+      "alternatives": [
+        "InventorServer",
+        "acad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".isc",
+      "primary": "aras",
+      "alternatives": [
+        "windchill",
+        "tc"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".java",
+      "primary": "idea",
+      "alternatives": [
+        "eclipse",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".jpeg",
+      "primary": "2345Pic",
+      "alternatives": [
+        "PhotoViewer",
+        "wpsphoto"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".jpg",
+      "primary": "2345Pic",
+      "alternatives": [
+        "PhotoViewer",
+        "wpsphoto"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".js",
+      "primary": "node",
+      "alternatives": [
+        "code",
+        "webstorm"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".jsdesign",
+      "primary": "jsdesign",
+      "alternatives": [
+        "Figma",
+        "pixso"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".json",
+      "primary": "code",
+      "alternatives": [
+        "notepad++",
+        "idea",
+        "pycharm"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".k",
+      "primary": "lsdyna",
+      "alternatives": [
+        "hypermesh",
+        "abq"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".key",
+      "primary": "lsdyna",
+      "alternatives": [
+        "hypermesh",
+        "abq"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".kt",
+      "primary": "idea",
+      "alternatives": [
+        "AndroidStudio",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ldf",
+      "primary": "SSMS",
+      "alternatives": [
+        "AzureDataStudio",
+        "DBeaver"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".log",
+      "primary": "notepad",
+      "alternatives": [
+        "notepad++",
+        "sublime_text",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".lrcat",
+      "primary": "Lightroom",
+      "alternatives": [
+        "LightroomClassic",
+        "photoshop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ma",
+      "primary": "maya",
+      "alternatives": [
+        "3dsmax",
+        "blender"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".markdown",
+      "primary": "code",
+      "alternatives": [
+        "Typora",
+        "Obsidian",
+        "notepad++"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".max",
+      "primary": "3dsmax",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mb",
+      "primary": "maya",
+      "alternatives": [
+        "3dsmax",
+        "blender"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".md",
+      "primary": "code",
+      "alternatives": [
+        "Typora",
+        "Obsidian",
+        "notepad++"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mdb",
+      "primary": "msaccess",
+      "alternatives": [
+        "LibreOfficeBase",
+        "DBeaver"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mdf",
+      "primary": "SSMS",
+      "alternatives": [
+        "AzureDataStudio",
+        "DBeaver"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mesh",
+      "primary": "hypermesh",
+      "alternatives": [
+        "blender",
+        "lsdyna"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mg",
+      "primary": "mastergo",
+      "alternatives": [
+        "pixso",
+        "jsdesign"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mkv",
+      "primary": "vlc",
+      "alternatives": [
+        "PotPlayer",
+        "mpc-hc"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mmap",
+      "primary": "MindManager",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mov",
+      "primary": "vlc",
+      "alternatives": [
+        "PotPlayer",
+        "mpc-hc"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mp3",
+      "primary": "foobar2000",
+      "alternatives": [
+        "vlc",
+        "GrooveMusic"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mp4",
+      "primary": "PotPlayer",
+      "alternatives": [
+        "vlc",
+        "mpc-hc"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mph",
+      "primary": "comsol",
+      "alternatives": [
+        "comsolgui",
+        "AbaqusCAE"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".mpp",
+      "primary": "winproj",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ms",
+      "primary": "3dsmax",
+      "alternatives": [
+        "blender",
+        "maya"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".nas",
+      "primary": "patran",
+      "alternatives": [
+        "nastran",
+        "AbaqusCAE"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".net",
+      "primary": "alps",
+      "alternatives": [
+        "padsnetlist",
+        "talis"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".neu",
+      "primary": "xtop",
+      "alternatives": [
+        "ugraf",
+        "cnext"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".nod",
+      "primary": "xtop",
+      "alternatives": [
+        "ugraf",
+        "SLDWORKS"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".nwc",
+      "primary": "Navisworks",
+      "alternatives": [
+        "Revit",
+        "acad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".nwd",
+      "primary": "Navisworks",
+      "alternatives": [
+        "Revit",
+        "acad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".obj",
+      "primary": "blender",
+      "alternatives": [
+        "maya",
+        "3dsmax"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".one",
+      "primary": "onenote",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".otf",
+      "primary": "WindowsFontViewer",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".outjob",
+      "primary": "altium",
+      "alternatives": [
+        "dxp",
+        "talis"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pat",
+      "primary": "photoshop",
+      "alternatives": [
+        "illustrator",
+        "gimp"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pcb",
+      "primary": "pad",
+      "alternatives": [
+        "PowerPCB",
+        "pcbexe"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pcbdoc",
+      "primary": "altium",
+      "alternatives": [
+        "dxp",
+        "pad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pcblib",
+      "primary": "altium",
+      "alternatives": [
+        "dxp",
+        "pad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pdd",
+      "primary": "photoshop",
+      "alternatives": [
+        "CorelDRW",
+        "gimp"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pdf",
+      "primary": "pdfeditor",
+      "alternatives": [
+        "AcroRd32",
+        "Acrobat",
+        "FoxitPDF",
+        "FoxitPDFEditor",
+        "FoxitReader",
+        "PDFXEdit",
+        "SumatraPDF",
+        "2345pdf"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".php",
+      "primary": "PhpStorm",
+      "alternatives": [
+        "code",
+        "notepad++"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pixso",
+      "primary": "pixso",
+      "alternatives": [
+        "jsdesign",
+        "mastergo"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pkg",
+      "primary": "ugraf",
+      "alternatives": [
+        "snx",
+        "xtop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pln",
+      "primary": "Archicad",
+      "alternatives": [
+        "Revit",
+        "BIMx"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".png",
+      "primary": "2345Pic",
+      "alternatives": [
+        "PhotoViewer",
+        "wpsphoto"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ppt",
+      "primary": "powerpnt",
+      "alternatives": [
+        "wpp"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".pptx",
+      "primary": "powerpnt",
+      "alternatives": [
+        "wpp"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".prjpcb",
+      "primary": "altium",
+      "alternatives": [
+        "dxp",
+        "pad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".prproj",
+      "primary": "PremierePro",
+      "alternatives": [
+        "AfterEffects",
+        "Resolve"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".prt",
+      "primary": "ugraf",
+      "alternatives": [
+        "xtop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ps1",
+      "primary": "powershell",
+      "alternatives": [
+        "code",
+        "notepad++"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".psb",
+      "primary": "photoshop",
+      "alternatives": [
+        "Illustrator",
+        "gimp"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".psd",
+      "primary": "photoshop",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".py",
+      "primary": "pycharm",
+      "alternatives": [
+        "python",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".rb",
+      "primary": "RubyMine",
+      "alternatives": [
+        "code",
+        "sublime_text"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".resolve",
+      "primary": "Resolve",
+      "alternatives": [
+        "PremierePro",
+        "AfterEffects"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".rfa",
+      "primary": "Revit",
+      "alternatives": [
+        "acad",
+        "Archicad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".rft",
+      "primary": "Revit",
+      "alternatives": [
+        "acad",
+        "Archicad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".rs",
+      "primary": "CLion",
+      "alternatives": [
+        "code",
+        "sublime_text"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".rst",
+      "primary": "code",
+      "alternatives": [
+        "notepad++",
+        "sublime_text"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".rte",
+      "primary": "Revit",
+      "alternatives": [
+        "acad",
+        "Archicad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".rts",
+      "primary": "padsrt",
+      "alternatives": [
+        "pad",
+        "pcbexe"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".rvt",
+      "primary": "Revit",
+      "alternatives": [
+        "acad",
+        "Navisworks"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".rwz",
+      "primary": "Revit",
+      "alternatives": [
+        "Navisworks",
+        "acad"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sbs",
+      "primary": "substancepainter",
+      "alternatives": [
+        "substancedesigner",
+        "blender"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sbsar",
+      "primary": "substancedesigner",
+      "alternatives": [
+        "substancepainter",
+        "blender"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sch",
+      "primary": "pad",
+      "alternatives": [
+        "padsnetlist",
+        "altium"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".schdoc",
+      "primary": "altium",
+      "alternatives": [
+        "dxp",
+        "virtuoso"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".schlib",
+      "primary": "altium",
+      "alternatives": [
+        "dxp",
+        "virtuoso"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".scs",
+      "primary": "virtuoso",
+      "alternatives": [
+        "spectre",
+        "alps"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ses",
+      "primary": "ugraf",
+      "alternatives": [
+        "snx",
+        "xtop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sh",
+      "primary": "bash",
+      "alternatives": [
+        "code",
+        "notepad++"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sketch",
+      "primary": "Sketch",
+      "alternatives": [
+        "Figma",
+        "CorelDRW"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".skp",
+      "primary": "SketchUp",
+      "alternatives": [
+        "Rhino",
+        "blender"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sldasm",
+      "primary": "SLDprt",
+      "alternatives": [
+        "solidworks"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".slddot",
+      "primary": "SLDWORKS",
+      "alternatives": [
+        "sldworks",
+        "SLDprt"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".slddrt",
+      "primary": "SLDWORKS",
+      "alternatives": [
+        "sldworks",
+        "SLDprt"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sldprt",
+      "primary": "SLDprt",
+      "alternatives": [
+        "solidworks"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sp",
+      "primary": "alps",
+      "alternatives": [
+        "spectre",
+        "hspice"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".spice",
+      "primary": "talis",
+      "alternatives": [
+        "alps",
+        "spectre"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sql",
+      "primary": "DBeaver",
+      "alternatives": [
+        "MySQLWorkbench",
+        "code",
+        "SSMS"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sqlite",
+      "primary": "DBBrowserForSQLite",
+      "alternatives": [
+        "DBeaver",
+        "PyCharm"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".sqlite3",
+      "primary": "DBBrowserForSQLite",
+      "alternatives": [
+        "DBeaver",
+        "PyCharm"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ssn",
+      "primary": "virtuoso",
+      "alternatives": [
+        "cadence",
+        "alps"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".step",
+      "primary": "CNEXT",
+      "alternatives": [
+        "SLDWORKS",
+        "Inventor",
+        "Fusion360"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".stl",
+      "primary": "blender",
+      "alternatives": [
+        "3dsmax",
+        "Cura",
+        "PreForm"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".stp",
+      "primary": "CNEXT",
+      "alternatives": [
+        "SLDWORKS",
+        "Inventor",
+        "Fusion360"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".svg",
+      "primary": "illustrator",
+      "alternatives": [
+        "Figma",
+        "CorelDRW"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".swift",
+      "primary": "Xcode",
+      "alternatives": [
+        "code",
+        "sublime_text"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".tc",
+      "primary": "tc",
+      "alternatives": [
+        "t4x",
+        "tcserver"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".tcc",
+      "primary": "tc",
+      "alternatives": [
+        "windchill",
+        "aras"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".tco",
+      "primary": "tc",
+      "alternatives": [
+        "t4x",
+        "windchill"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".tex",
+      "primary": "texstudio",
+      "alternatives": [
+        "TeXworks",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".toml",
+      "primary": "code",
+      "alternatives": [
+        "notepad++",
+        "sublime_text"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ts",
+      "primary": "WebStorm",
+      "alternatives": [
+        "code",
+        "sublime_text"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ttc",
+      "primary": "WindowsFontViewer",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ttf",
+      "primary": "WindowsFontViewer",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ttl",
+      "primary": "ugraf",
+      "alternatives": [
+        "snx",
+        "xtop"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".txt",
+      "primary": "notepad",
+      "alternatives": [
+        "notepad++",
+        "sublime_text",
+        "code",
+        "winword"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".vsd",
+      "primary": "visio",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".vsdx",
+      "primary": "visio",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".vsx",
+      "primary": "visio",
+      "alternatives": [
+        "edraw",
+        "CorelDRW"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".wav",
+      "primary": "audacity",
+      "alternatives": [
+        "foobar2000",
+        "vlc"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".wbpj",
+      "primary": "AnsysWBU",
+      "alternatives": [
+        "ansys",
+        "AnsysEM"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".woff",
+      "primary": "chrome",
+      "alternatives": [
+        "msedge",
+        "firefox"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".woff2",
+      "primary": "chrome",
+      "alternatives": [
+        "msedge",
+        "firefox"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".wps",
+      "primary": "wps",
+      "alternatives": [
+        "kwps",
+        "winword"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".wt",
+      "primary": "windchill",
+      "alternatives": [
+        "wtcsc",
+        "tc"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".xdm",
+      "primary": "tc",
+      "alternatives": [
+        "windchill",
+        "aras"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".xhtml",
+      "primary": "windchill",
+      "alternatives": [
+        "tc",
+        "code"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".xls",
+      "primary": "excel",
+      "alternatives": [
+        "et"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".xlsx",
+      "primary": "excel",
+      "alternatives": [
+        "et"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".xmind",
+      "primary": "XMind",
+      "alternatives": [],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".xml",
+      "primary": "notepad++",
+      "alternatives": [
+        "code",
+        "notepad",
+        "idea"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".xps",
+      "primary": "xtop",
+      "alternatives": [
+        "ugraf",
+        "cnext"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".yaml",
+      "primary": "code",
+      "alternatives": [
+        "notepad++",
+        "sublime_text"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".yml",
+      "primary": "code",
+      "alternatives": [
+        "notepad++",
+        "sublime_text"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".zpr",
+      "primary": "ZBrush",
+      "alternatives": [
+        "blender",
+        "3dsmax"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".ztl",
+      "primary": "ZBrush",
+      "alternatives": [
+        "blender",
+        "3dsmax"
+      ],
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "extension": ".zwc",
+      "primary": "zwcad",
+      "alternatives": [
+        "acad",
+        "caxa"
+      ],
+      "priority": 100,
+      "enabled": true
+    }
+  ]
+}
