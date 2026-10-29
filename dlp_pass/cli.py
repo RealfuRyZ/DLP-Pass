@@ -188,7 +188,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--include-plain",
         action="store_true",
-        help="未检测到加密标识的文件也执行导出（默认跳过）。",
+        help="未检测到加密特征的文件也执行导出（默认跳过）。",
     )
     parser.add_argument(
         "--selftest",

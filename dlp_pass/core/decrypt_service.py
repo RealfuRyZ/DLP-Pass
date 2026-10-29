@@ -6,7 +6,8 @@
 2. 从本地映射表（mappings/ 当前版本）取该后缀对应的伪装进程队列（主进程 -> 备用进程）；
 3. 复用 / 构建伪装进程，将明文流经 stdin 写入 ``*.pass`` 临时文件；
 4. 将 ``*.pass`` 重命名为最终文件（等价于原脚本的 ``move /y``）；
-5. 用 PowerShell 校验输出文件是否仍含 TSD-Header 密文头，
+5. 用 PowerShell（非白名单视角）校验输出文件是否仍呈密文特征
+   （标识串命中或后缀应有明文签名缺失），
    若仍为密文则删除输出并尝试下一个备用进程。
 
 批处理进程复用（性能优化）
@@ -188,7 +189,7 @@ class DecryptService:
                 return outcome
             emit(f"进程 [{proc_name}.exe] 尝试落盘失败或未通过校验，尝试下一个备用进程...")
 
-        outcome.error = "所有尝试的白名单进程均未能完成落盘（或导出文件均包含 TSD-Header 标识）！"
+        outcome.error = "所有尝试的白名单进程均未能完成落盘（或导出文件仍呈密文特征）！"
         emit(outcome.error)
         return outcome
 
@@ -247,7 +248,7 @@ class DecryptService:
             # 原地覆盖：先校验临时文件为明文再替换原文件（重命名不改变内容），
             # 避免把密文临时文件覆盖到原始路径导致原文件损坏。
             if self._verifier.is_encrypted(pass_file) is True:
-                emit("校验结果: 临时导出文件仍包含 TSD-Header 密文标头，原文件保持不变")
+                emit("校验结果: 临时导出文件仍呈密文特征，原文件保持不变")
                 try:
                     pass_file.unlink(missing_ok=True)
                 except OSError:
@@ -261,7 +262,7 @@ class DecryptService:
             return False, "输出文件重命名失败"
 
         if self._verifier.is_encrypted(final_file) is True:
-            emit(f"校验结果: 进程 [{proc_name}.exe] 导出的文件仍包含 TSD-Header 密文标头！")
+            emit(f"校验结果: 进程 [{proc_name}.exe] 导出的文件仍呈密文特征！")
             try:
                 final_file.unlink(missing_ok=True)
             except OSError:

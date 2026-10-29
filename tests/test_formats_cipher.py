@@ -1,0 +1,162 @@
+"""内容级密文判定单元测试（formats / SourceReader，不依赖真实 DLP 环境）。
+
+覆盖两类厂商场景与既有行为回归：
+
+1. 亿赛通（带 ``%TSD-Header-###%`` 标识串）：旧行为不变；
+2. 艾特盾（无任何明文标识，issue #1）：按「后缀应有明文签名缺失」与
+   ECB 重复块指纹判定；
+3. 防误报：合法 OLE / ZIP 明文、另存为 HTML/RTF/Word95 的 .doc、
+   空白明文、未知后缀随机数据。
+
+保持 Python 3.8 兼容（Win7 构建链同样运行本测试）。
+"""
+
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+from dlp_pass.core import formats
+from dlp_pass.core.source_reader import SourceReader, SourceReadError
+
+MARKER = "%TSD-Header-###%"
+
+# 艾特盾空白样本实测密文块（终端密钥相关，仅作确定性构造用）
+ATS_BLOCK_A = b"\xe8\xb5\xef\xcc\xa5\x77\x30\x93"
+ATS_BLOCK_B = b"\x8b\x51\x46\x7b\x81\x8d\x3e\x89"
+
+
+def ats_cipher(size: int = 16384, block_size: int = 16) -> bytes:
+    """构造艾特盾风格密文：无明文签名 + 同一密文块大量重复。"""
+    data = bytearray()
+    while len(data) < size:
+        data += ATS_BLOCK_A if (len(data) // block_size) % 2 else ATS_BLOCK_B
+    return bytes(data[:size])
+
+
+class IsCipherContentTest(unittest.TestCase):
+    """formats.is_cipher_content 判定矩阵。"""
+
+    # -- 亿赛通回归 --------------------------------------------------------
+    def test_tsd_marker_detected(self):
+        self.assertIs(formats.is_cipher_content(
+            (MARKER + "x").encode("ascii") + b"\x00" * 50, ".docx"), True)
+
+    def test_tsd_marker_on_unknown_suffix(self):
+        self.assertIs(formats.is_cipher_content(
+            MARKER.encode("ascii") + b"\x00" * 100, ".xyz"), True)
+
+    # -- 艾特盾（无标识串） -------------------------------------------------
+    def test_ats_office_cipher_detected_by_signature(self):
+        for suffix in (".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"):
+            self.assertIs(formats.is_cipher_content(ats_cipher(), suffix), True, suffix)
+
+    def test_ats_cipher_detected_by_ecb_fingerprint(self):
+        # 未知后缀无签名可查，退化为 ECB 重复块指纹
+        self.assertIs(formats.is_cipher_content(ats_cipher(), ".bin"), True)
+
+    # -- 明文与防误报 -------------------------------------------------------
+    def test_plaintext_signatures(self):
+        self.assertIs(formats.is_cipher_content(
+            b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 300, ".xls"), False)
+        self.assertIs(formats.is_cipher_content(b"PK\x03\x04" + b"\x00" * 300, ".docx"), False)
+
+    def test_alternative_saved_docs_not_cipher(self):
+        # 「另存为」HTML / RTF 保留 .doc 后缀的明文不应误报
+        self.assertIs(formats.is_cipher_content(
+            b'<html xmlns:o="urn:schemas"><body>x' * 20, ".doc"), False)
+        self.assertIs(formats.is_cipher_content(
+            b"{\\rtf1\\ansi hello" * 10, ".doc"), False)
+
+    def test_word95_doc_not_cipher(self):
+        self.assertIs(formats.is_cipher_content(
+            b"\x1b\xa5\x00\x02" + b"\x00" * 30, ".doc"), False)
+
+    def test_random_unknown_suffix_inconclusive(self):
+        rnd = bytes((i * 37 + 11) % 251 ^ (i % 7) for i in range(8192))
+        self.assertIsNone(formats.is_cipher_content(rnd, ".bin"))
+
+    def test_empty_file_inconclusive(self):
+        self.assertIsNone(formats.is_cipher_content(b"", ".docx"))
+        self.assertIsNone(formats.is_cipher_content(b"", ".bin"))
+
+    def test_marker_window_beyond_64_bytes_not_matched(self):
+        payload = b"\x00" * 70 + MARKER.encode("ascii")
+        self.assertFalse(formats.is_cipher_content(payload, ".bin") is True)
+
+
+class SourceReaderTest(unittest.TestCase):
+    """SourceReader：明文直返、密文委派、委派失败报错。"""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="dlp-reader-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.reader = SourceReader(MARKER)
+
+    def _write(self, name: str, data: bytes) -> Path:
+        path = self.tmp / name
+        path.write_bytes(data)
+        return path
+
+    def test_plaintext_returned_directly(self):
+        path = self._write("报告.docx", b"PK\x03\x04" + os.urandom(64))
+        self.assertEqual(self.reader.read(path), path.read_bytes())
+
+    def test_tsd_ciphertext_delegates(self):
+        plain = b"DECRYPTED DOCX"
+        path = self._write("t.docx", (MARKER + "pad").encode("ascii") + b"\x00" * 40)
+        self.reader._read_via_cmd = lambda p: plain  # type: ignore[assignment]
+        self.assertEqual(self.reader.read(path), plain)
+
+    def test_ats_cipher_delegates(self):
+        plain = b"PK\x03\x04" + b"REAL OOXML"
+        path = self._write("blank.docx", ats_cipher())
+        self.reader._read_via_cmd = lambda p: plain  # type: ignore[assignment]
+        self.assertEqual(self.reader.read(path), plain)
+
+    def test_delegation_still_cipher_raises(self):
+        path = self._write("blank.xlsx", ats_cipher())
+        self.reader._read_via_cmd = lambda p: ats_cipher(2048)  # type: ignore[assignment]
+        self.reader._read_via_python = lambda p: ats_cipher(2048)  # type: ignore[assignment]
+        with self.assertRaises(SourceReadError):
+            self.reader.read(path)
+
+
+@unittest.skipUnless(shutil.which("powershell"), "需要 PowerShell 环境")
+class VerifierIntegrationTest(unittest.TestCase):
+    """EncryptionVerifier：PowerShell 头部字节协议 + 格式判定端到端。"""
+
+    def setUp(self):
+        from dlp_pass.config import AppConfig
+        from dlp_pass.core.verifier import EncryptionVerifier
+
+        self.verifier = EncryptionVerifier(AppConfig())
+        self.addCleanup(self.verifier.close)
+        self.tmp = Path(tempfile.mkdtemp(prefix="dlp-verifier-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+
+    def _check(self, name: str, data: bytes):
+        path = self.tmp / name
+        path.write_bytes(data)
+        result = self.verifier.is_encrypted(path)
+        if result is None:  # 常驻与一次性读取均失败时不误判
+            self.skipTest("PowerShell 读取头部字节失败，跳过环境相关断言")
+        return result
+
+    def test_ats_cipher_detected(self):
+        self.assertIs(self._check("空白.docx", ats_cipher()), True)
+
+    def test_tsd_cipher_detected(self):
+        self.assertIs(
+            self._check("t.xlsx", (MARKER + "x").encode("ascii") + ats_cipher(4096)), True)
+
+    def test_plaintext_not_detected(self):
+        self.assertIs(self._check("ok.docx", b"PK\x03\x04" + os.urandom(64)), False)
+
+
+if __name__ == "__main__":
+    unittest.main()
