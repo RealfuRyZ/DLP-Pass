@@ -3,25 +3,20 @@
 原理
 ----
 PowerShell 进程不在 DLP 白名单中，读取到的是磁盘上的原始数据。拿到原始
-文件头字节后，交由 :mod:`dlp_pass.core.formats` 按文件后缀做「内容级」判定：
+头部字节后，交由 :mod:`dlp_pass.core.schemes` 的可扩展判定链按文件后缀
+做「内容级」识别（标识串 / 明文签名缺失 / ECB 重复块指纹等，见包文档）。
 
-- 亿赛通 CDGC：密文头带明文标识串 ``%TSD-Header-###%``，命中即密文；
-- 艾特盾等（issue #1）：密文不含任何明文标识，但受管 Office 文档的密文头
-  缺少该格式应有的明文签名（ZIP / OLE 魔数），据此判定；未知后缀则退化为
-  ECB 分组重复指纹。
-
-原实现只在文件头查找标识串，能覆盖亿赛通但对无标识串的艾特盾密文会漏判
-（读到的原始密文恰好不含 TSD 字样，被误认为明文）。本版本在保持亿赛通行为
-不变的前提下，用 PowerShell 回传头部字节、Python 侧做签名比对来扩展识别。
+原实现只在文件头查找单一标识串，能覆盖亿赛通但对无标识串的厂商（艾特盾，
+issue #1 等）会漏判；现由方案链统一处理，新厂商接入不动本模块。
 
 返回值约定：``True`` = 仍为密文；``False`` = 已是明文；``None`` = 无法判定。
 
 实现
 ----
 - :class:`PowerShellOracle`：常驻一个 PowerShell 进程，通过 stdin/stdout
-  行协议（base64 路径 -> 头部字节的 base16）批量检测，首次启动约 0.2s，
+  行协议（base64 路径 -> 头部字节的 hex）批量检测，首次启动约 0.2s，
   之后单文件耗时不足 1ms，适合文件夹批量扫描。
-- 一次性回退：若常驻进程不可用，则以同样的字节读取规则单独调用 PowerShell。
+- 一次性回退：若常驻进程不可用，则以同样的窗口规则单独调用 PowerShell。
 """
 
 from __future__ import annotations
@@ -35,15 +30,14 @@ import threading
 from pathlib import Path
 
 from ..config import AppConfig
-from . import formats
+from .schemes import HEAD_WINDOW, Decision, registry_from_config
 
 _logger = logging.getLogger(__name__)
 
 _CREATE_NO_WINDOW = 0x08000000
 
-# 读取的头部窗口：需覆盖最宽签名（含 ECB 指纹采样窗口所需的前 16KB 足够短签名比对，
-# 指纹部分在 Python 侧对同一段头部字节复用）。
-_HEAD_WINDOW = formats.ECB_WINDOW  # 16384
+# 读取的头部窗口：覆盖各方案所需字节（标识串 / 偏移魔数 / ECB 统计指纹）。
+_HEAD_WINDOW = HEAD_WINDOW
 
 # PowerShell 行协议：收到 base64 路径，回读头部字节并回传其 base16（hex）；
 # 空行回传空串；读失败回传 'E'。检测与格式判定解耦，脚本本身不含任何厂商标识。
@@ -165,8 +159,8 @@ class EncryptionVerifier:
     """对外统一的密文检测入口。"""
 
     def __init__(self, config: AppConfig):
-        self._marker = config.encryption_marker
         self._timeout = config.powershell_timeout
+        self._registry = registry_from_config(config)
         self._oracle = PowerShellOracle(timeout=self._timeout)
 
     def is_encrypted(self, path: Path | str) -> bool | None:
@@ -179,7 +173,10 @@ class EncryptionVerifier:
             data = self._read_with_one_shot(target)
         if data is None:
             return None
-        return formats.is_cipher_content(data, target.suffix, self._marker)
+        verdict = self._registry.decide(target.suffix, data, len(data))
+        if verdict.decision is Decision.CIPHER:
+            _logger.info("判定为密文 [%s]: %s (%s)", target.name, verdict.scheme, verdict.detail)
+        return verdict.is_cipher
 
     def close(self) -> None:
         self._oracle.close()

@@ -33,6 +33,7 @@ from .core.file_collector import collect_entries
 from .core.mapping_loader import load_latest
 from .core.models import DecryptTask
 from .core.output_mode import OutputMode, plan_decrypt_tasks, validate_output_dir
+from .core.schemes import registry_from_config
 from .core.source_reader import SourceReader
 from .core.verifier import EncryptionVerifier
 from .core.writer_factory import DisguisedWriterFactory
@@ -553,7 +554,7 @@ def _execute_decrypt(
             mapping=mapping,
             verifier=verifier,
             writer_factory=DisguisedWriterFactory(config),
-            source_reader=SourceReader(config.encryption_marker),
+            source_reader=SourceReader(registry=registry_from_config(config)),
         )
         # 同后缀连续处理可复用常驻伪装进程（与图形界面的排序规则一致）
         for index, task in enumerate(
@@ -652,7 +653,7 @@ def _run_selftest(paths: Sequence[str]) -> int:
         mapping=mapping,
         verifier=verifier,
         writer_factory=DisguisedWriterFactory(config),
-        source_reader=SourceReader(config.encryption_marker),
+        source_reader=SourceReader(registry=registry_from_config(config)),
     )
     out_dir = Path(tempfile.gettempdir()) / "dlp_pass_selftest"
 

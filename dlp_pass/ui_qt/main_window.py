@@ -45,6 +45,7 @@ from ..config import AppConfig
 from ..core.decrypt_service import DecryptService
 from ..core.mapping_loader import MappingSet
 from ..core.output_mode import OutputMode, plan_decrypt_tasks, validate_output_dir
+from ..core.schemes import registry_from_config
 from ..core.source_reader import SourceReader
 from ..core.verifier import EncryptionVerifier
 from ..core.writer_factory import DisguisedWriterFactory
@@ -107,7 +108,7 @@ class MainWindow(QMainWindow):
             mapping=self._mapping,
             verifier=self._verifier,
             writer_factory=DisguisedWriterFactory(config),
-            source_reader=SourceReader(config.encryption_marker),
+            source_reader=SourceReader(registry=registry_from_config(config)),
         )
 
         # ---- 状态 ----

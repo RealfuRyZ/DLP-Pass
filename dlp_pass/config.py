@@ -59,6 +59,9 @@ class AppConfig:
     """应用全局配置。"""
 
     encryption_marker: str = "%TSD-Header-###%"
+    # 标识串型密文容器规则（str 简写或 {name, token, window} 对象）；
+    # 为空时回退 encryption_marker，行为与旧版一致。见 core/schemes/markers.py
+    cipher_markers: tuple = ()
     powershell_timeout: float = 10.0
     writer_cache_dir: Path = field(default_factory=_default_writer_cache_dir)
     python_executable: str | None = None
@@ -84,6 +87,12 @@ class AppConfig:
         config = cls()
         if "encryption_marker" in data:
             config.encryption_marker = str(data["encryption_marker"])
+        if "cipher_markers" in data:
+            raw = data["cipher_markers"] or ()
+            if isinstance(raw, (list, tuple)):
+                config.cipher_markers = tuple(raw)
+            elif isinstance(raw, str):
+                config.cipher_markers = (raw,)
         if "powershell_timeout" in data:
             config.powershell_timeout = float(data["powershell_timeout"])
         if "writer_cache_dir" in data:
@@ -97,6 +106,10 @@ class AppConfig:
         if "check_updates" in data:
             config.check_updates = bool(data["check_updates"])
         return config
+
+    def marker_rules(self) -> list:
+        """标识串规则列表（原始 JSON 条目，交由 MarkerRule 归一化）。"""
+        return list(self.cipher_markers) or [self.encryption_marker]
 
 
 def load_runtime_config(project_root: Path | None = None) -> AppConfig:

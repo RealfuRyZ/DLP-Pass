@@ -5,7 +5,7 @@
 DLP 透明加密驱动只对「白名单进程」返回解密后的数据；发布版 exe 自身不是
 白名单进程，直接读取加密文件拿到的是磁盘原始密文。不同厂商的密文形态不同：
 亿赛通带 ``%TSD-Header-###%`` 标识串；艾特盾等无任何明文标识，需要按
-「后缀应有明文签名缺失 + 密文统计特征」判定（见 :mod:`dlp_pass.core.formats`）。
+「后缀应有明文签名缺失 + 密文统计特征」判定（见 :mod:`dlp_pass.core.schemes`）。
 本模块负责在两种运行模式下都能拿到明文流：
 
 1. 直接读取：若内容判定不为密文，说明本进程可信（或文件本就是
@@ -26,7 +26,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from . import formats
+from .schemes import DEFAULT_MARKER, SchemeRegistry, default_registry
 
 _logger = logging.getLogger(__name__)
 
@@ -42,8 +42,10 @@ class SourceReadError(RuntimeError):
 class SourceReader:
     """读取源文件明文（必要时自动委派白名单进程，对调用方透明）。"""
 
-    def __init__(self, marker: str = formats.DEFAULT_MARKER):
-        self._marker = marker
+    def __init__(self, marker: str = DEFAULT_MARKER, registry: SchemeRegistry | None = None):
+        # 优先使用注入的判定链（可携带配置多标识串/厂商方案）；
+        # 仅给 marker 时保持旧单标识串用法。
+        self._registry = registry if registry is not None else default_registry(markers=(marker,))
 
     def read(self, path: Path | str) -> bytes:
         """返回源文件明文内容；无法获得明文时抛出 :class:`SourceReadError`。"""
@@ -68,7 +70,7 @@ class SourceReader:
 
     def _is_cipher(self, data: bytes, suffix: str) -> bool:
         """磁盘原始数据是否呈现密文特征（无法判定时视为明文）。"""
-        return formats.is_cipher_content(data, suffix, self._marker) is True
+        return self._registry.decide(suffix, data, len(data)).is_cipher is True
 
     # ---------------------------------------------------------------- 委派读取
 
