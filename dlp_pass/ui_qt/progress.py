@@ -3,18 +3,60 @@
 流程：首个进程汇总完多选路径后创建一个小型 ``QProgressDialog``；
 扫描阶段显示不确定进度，解密阶段显示 ``已完成 / 总数``，用户可随时取消。
 解密在后台 Python 线程中执行，通过 Qt 信号回到界面线程更新进度。
+
+外观与主程序一致：本模块负责补齐独立入口的应用装配（AppUserModelID、
+Fusion 风格、持久化主题 QSS、程序 Logo），并提供主题化的结果提示
+:func:`show_summary_dialog`（替代原生 Windows 消息框）。
 """
 
 from __future__ import annotations
 
+import ctypes
 import logging
 import sys
 import threading
 from typing import Callable
 
-from .qt_compat import QApplication, QObject, QProgressDialog, Qt, pyqtSignal
+from . import settings, theme
+from .assets import app_icon, logo_pixmap
+from .qt_compat import (
+    QApplication,
+    QFont,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QObject,
+    QProgressDialog,
+    Qt,
+    prepare_high_dpi,
+    pyqtSignal,
+)
 
 _logger = logging.getLogger(__name__)
+
+_APP_USER_MODEL_ID = "RealfuRyZ.DLPPass"
+
+
+def _bootstrap_app() -> QApplication:
+    """创建（或复用）与主程序外观一致的全局 QApplication。"""
+    app = QApplication.instance()
+    if app is not None:
+        return app
+    if sys.platform == "win32":
+        try:
+            # 让 Windows 任务栏按应用而不是 python.exe 分组并显示自定义图标
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(_APP_USER_MODEL_ID)
+        except Exception:
+            _logger.debug("设置 AppUserModelID 失败", exc_info=True)
+    prepare_high_dpi()
+    app = QApplication([sys.argv[0] if sys.argv else "DLP-Pass"])
+    app.setApplicationName("DLP-Pass")
+    app.setStyle("Fusion")
+    theme.set_active_theme(settings.load_theme())  # 恢复上次使用的配色（默认暗色）
+    app.setFont(QFont(theme.FONT_FAMILY, 10))
+    app.setStyleSheet(theme.build_stylesheet())
+    app.setWindowIcon(app_icon())
+    return app
 
 
 class _ProgressReporter(QObject):
@@ -49,17 +91,43 @@ class _ProgressReporter(QObject):
         self._cancel.set()
 
 
-def run_with_progress(work: Callable[[_ProgressReporter], int], summary) -> int:
+def show_summary_dialog(title: str, text: str, *, success: bool = True) -> None:
+    """与主程序风格一致的批量解密结果提示（程序 Logo + 主题配色）。
+
+    须在 :func:`_bootstrap_app` 完成后、于界面线程调用；模态阻塞直至关闭。
+    """
+    box = QMessageBox()
+    box.setWindowTitle(title)
+    box.setIconPixmap(logo_pixmap(44))
+    box.setText(title)
+    box.setInformativeText(text)
+    box.setStandardButtons(QMessageBox.StandardButton.Ok)
+    box.setDefaultButton(QMessageBox.StandardButton.Ok)
+    # 仅标题用状态强调色（成功/失败），正文保持主题中性色，与主界面一致
+    accent = theme.COLORS["success" if success else "danger"]
+    box.setStyleSheet(
+        "QMessageBox QLabel#qt_msgbox_label { color: %s; font-weight: 600; }" % accent
+    )
+    box.exec()
+
+
+def run_with_progress(
+    work: Callable[[_ProgressReporter], int],
+    summary,
+    notify: Callable[[], None] | None = None,
+) -> int:
     """创建进度窗口并执行 ``work``；返回 ``work`` 的退出码。
 
     ``work`` 在后台线程运行，必须只通过 ``reporter`` 的方法与界面交互。
+    ``notify`` 不为空时，在任务结束、窗口关闭后（界面线程）调用一次，
+    用于展示与主程序风格一致的结果提示。
     """
-    app = QApplication.instance() or QApplication([sys.argv[0] if sys.argv else "DLP-Pass"])
-    app.setApplicationName("DLP-Pass")
+    app = _bootstrap_app()
     app.setQuitOnLastWindowClosed(False)
 
     dialog = QProgressDialog("正在扫描文件…", "取消", 0, 0)
     dialog.setWindowTitle("DLP-Pass 解密")
+    dialog.setWindowIcon(app_icon())
     dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
     dialog.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
     dialog.setMinimumDuration(0)
@@ -67,6 +135,18 @@ def run_with_progress(work: Callable[[_ProgressReporter], int], summary) -> int:
     dialog.setAutoReset(False)
     dialog.setMinimumWidth(460)
     dialog.setValue(0)
+
+    # 窗口内嵌程序 Logo（左侧），与主界面顶栏 Logo 呼应
+    logo_label = QLabel(dialog)
+    pixmap = logo_pixmap(28)
+    if not pixmap.isNull():
+        logo_label.setPixmap(pixmap)
+    logo_row = QHBoxLayout()
+    logo_row.addWidget(logo_label)
+    logo_row.addStretch(1)
+    layout = dialog.layout()
+    if layout is not None:
+        layout.insertLayout(0, logo_row)
 
     reporter = _ProgressReporter()
 
@@ -97,6 +177,11 @@ def run_with_progress(work: Callable[[_ProgressReporter], int], summary) -> int:
 
     def on_finished() -> None:
         dialog.close()
+        if notify is not None:
+            try:
+                notify()
+            except Exception:  # 结果提示失败不影响退出码与日志落盘
+                _logger.exception("展示结果提示失败")
         app.quit()
 
     reporter.scan_progress.connect(on_scan)

@@ -433,14 +433,34 @@ def _format_summary(summary: DecryptSummary) -> str:
     return "\n".join(lines)
 
 
-def _notify_summary(summary: DecryptSummary) -> None:
+def _summary_title(summary: DecryptSummary) -> str:
+    """结果提示标题（原生消息框与主题化对话框共用）。"""
     if summary.cancelled and summary.ok:
-        title = "DLP-Pass 已取消"
-    elif summary.ok:
-        title = "DLP-Pass 解密完成"
-    else:
-        title = "DLP-Pass 解密失败"
-    _message_box(_format_summary(summary), title, error=not summary.ok)
+        return "DLP-Pass 已取消"
+    if summary.ok:
+        return "DLP-Pass 解密完成"
+    return "DLP-Pass 解密失败"
+
+
+def _notify_summary(summary: DecryptSummary) -> None:
+    _message_box(_format_summary(summary), _summary_title(summary), error=not summary.ok)
+
+
+def _notify_summary_themed(summary: DecryptSummary) -> None:
+    """与主程序风格一致的结果对话框（程序 Logo + 主题配色）；失败回退原生消息框。
+
+    仅在进度窗口流程中调用：此时 QApplication 已装配完毕，直接在界面线程
+    弹出模态对话框（由 :func:`dlp_pass.ui_qt.progress.run_with_progress` 回调）。
+    """
+    try:
+        from .ui_qt.progress import show_summary_dialog
+
+        show_summary_dialog(
+            _summary_title(summary), _format_summary(summary), success=summary.ok
+        )
+    except Exception:
+        _logger.exception("主题化结果对话框失败，回退系统消息框")
+        _notify_summary(summary)
 
 
 # ---------------------------------------------------------------- 解密流程
@@ -611,9 +631,8 @@ def _decrypt_paths(
             code = run_with_progress(
                 lambda progress: _execute_decrypt(raw_paths, args, summary, progress),
                 summary,
+                notify=(lambda: _notify_summary_themed(summary)) if args.notify else None,
             )
-            if args.notify:
-                _notify_summary(summary)
             return code
 
     code = _execute_decrypt(raw_paths, args, summary, _NullProgress())
