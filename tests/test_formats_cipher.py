@@ -158,5 +158,42 @@ class VerifierIntegrationTest(unittest.TestCase):
         self.assertIs(self._check("ok.docx", b"PK\x03\x04" + os.urandom(64)), False)
 
 
+class PassSuffixTest(unittest.TestCase):
+    """原地解密校验对象的 .pass 临时后缀必须剥离为真实后缀（v2.4.2 缺陷回归）。
+
+    合法明文空白 .xls（BIFF 记录）含大量重复非零 8 字节块；若按 `.pass`
+    判定则格式签名方案失效、误落 ECB 统计指纹 → 明文被误判密文 → 原地解密
+    全量失败。剥离后缀后由 OLE 强证据定案为明文。
+    """
+
+    def test_effective_suffix_stripping(self):
+        from dlp_pass.core.verifier import _effective_suffix
+
+        self.assertEqual(_effective_suffix(Path("报告.xls.pass")), ".xls")
+        self.assertEqual(_effective_suffix(Path("a.b.docx.pass")), ".docx")
+        self.assertEqual(_effective_suffix(Path("notes.pass")), ".pass")   # 无内层后缀保持原样
+        self.assertEqual(_effective_suffix(Path("normal.txt")), ".txt")
+
+    @unittest.skipUnless(shutil.which("powershell"), "需要 PowerShell 环境")
+    def test_plaintext_xls_pass_not_misjudged(self):
+        from dlp_pass.config import AppConfig
+        from dlp_pass.core.verifier import EncryptionVerifier
+
+        tmp = Path(tempfile.mkdtemp(prefix="dlp-pass-suffix-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        verifier = EncryptionVerifier(AppConfig())
+        try:
+            # 合法明文 .xls：OLE 头 + 大量重复非零记录块（空白 BIFF 模板形态）
+            xls = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00\xff\x01\x22\x33\x44\x55\x66" * 200
+            (tmp / "水浸传感器.xls.pass").write_bytes(xls)
+            self.assertIs(verifier.is_encrypted(tmp / "水浸传感器.xls.pass"), False)
+            # 合法明文扫描 PDF：%PDF 头 + 大量重复图像行模式（issue 现场 54~245 次重复形态）
+            pdf = b"%PDF-1.6\n" + b"\x00\x00\xff\xdc\xdc\x00\x00\x00" * 183
+            (tmp / "投标邀请函.pdf.pass").write_bytes(pdf)
+            self.assertIs(verifier.is_encrypted(tmp / "投标邀请函.pdf.pass"), False)
+        finally:
+            verifier.close()
+
+
 if __name__ == "__main__":
     unittest.main()

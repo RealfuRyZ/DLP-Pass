@@ -41,8 +41,7 @@ _HEAD_WINDOW = HEAD_WINDOW
 
 # PowerShell 行协议：收到 base64 路径，回读头部字节并回传其 base16（hex）；
 # 空行回传空串；读失败回传 'E'。检测与格式判定解耦，脚本本身不含任何厂商标识。
-_ORACLE_SCRIPT = r"""
-$ErrorActionPreference = 'Stop'
+_ORACLE_SCRIPT = r"""$ErrorActionPreference = 'Stop'
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = [System.Text.Encoding]::ASCII
 $window = __WINDOW__
@@ -63,6 +62,25 @@ while ($true) {
     [Console]::Out.Flush()
 }
 """.replace("__WINDOW__", str(_HEAD_WINDOW))
+
+
+_TEMP_SUFFIX = ".pass"
+
+
+def _effective_suffix(target: Path) -> str:
+    """判定所用的真实后缀。
+
+    原地解密校验对象是 ``xxx.xls.pass`` 临时文件：``Path.suffix`` 会取到
+    ``.pass``，使格式签名方案查不到证据、错误退化到 ECB 统计指纹——合法
+    明文 Office 文件（空白 BIFF 记录含大量重复非零块）会被误判为密文。
+    此处剥离 ``.pass`` 外层取内层后缀，让强证据方案正常定案。
+    """
+    suffix = target.suffix.lower()
+    if suffix == _TEMP_SUFFIX:
+        inner = Path(target.stem).suffix.lower()
+        if inner:
+            return inner
+    return suffix
 
 
 class PowerShellOracle:
@@ -173,7 +191,7 @@ class EncryptionVerifier:
             data = self._read_with_one_shot(target)
         if data is None:
             return None
-        verdict = self._registry.decide(target.suffix, data, len(data))
+        verdict = self._registry.decide(_effective_suffix(target), data, target.stat().st_size)
         if verdict.decision is Decision.CIPHER:
             _logger.info("判定为密文 [%s]: %s (%s)", target.name, verdict.scheme, verdict.detail)
         return verdict.is_cipher
