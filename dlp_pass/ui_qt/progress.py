@@ -5,8 +5,9 @@
 解密在后台 Python 线程中执行，通过 Qt 信号回到界面线程更新进度。
 
 外观与主程序一致：本模块负责补齐独立入口的应用装配（AppUserModelID、
-Fusion 风格、持久化主题 QSS、程序 Logo），并提供主题化的结果提示
-:func:`show_summary_dialog`（替代原生 Windows 消息框）。
+Fusion 风格、持久化主题 QSS、标题栏程序 Logo 图标——进度窗口内容区不内嵌
+Logo），并提供主题化的结果提示 :func:`show_summary_dialog`（替代原生 Windows
+消息框）。
 """
 
 from __future__ import annotations
@@ -22,8 +23,6 @@ from .assets import app_icon, logo_pixmap
 from .qt_compat import (
     QApplication,
     QFont,
-    QHBoxLayout,
-    QLabel,
     QMessageBox,
     QObject,
     QProgressDialog,
@@ -127,7 +126,7 @@ def run_with_progress(
 
     dialog = QProgressDialog("正在扫描文件…", "取消", 0, 0)
     dialog.setWindowTitle("DLP-Pass 解密")
-    dialog.setWindowIcon(app_icon())
+    dialog.setWindowIcon(app_icon())  # 仅标题栏左侧使用程序 Logo
     dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
     dialog.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
     dialog.setMinimumDuration(0)
@@ -135,18 +134,6 @@ def run_with_progress(
     dialog.setAutoReset(False)
     dialog.setMinimumWidth(460)
     dialog.setValue(0)
-
-    # 窗口内嵌程序 Logo（左侧），与主界面顶栏 Logo 呼应
-    logo_label = QLabel(dialog)
-    pixmap = logo_pixmap(28)
-    if not pixmap.isNull():
-        logo_label.setPixmap(pixmap)
-    logo_row = QHBoxLayout()
-    logo_row.addWidget(logo_label)
-    logo_row.addStretch(1)
-    layout = dialog.layout()
-    if layout is not None:
-        layout.insertLayout(0, logo_row)
 
     reporter = _ProgressReporter()
 

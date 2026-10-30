@@ -2,8 +2,8 @@
 
 覆盖两个修复点：
 
-1. ``--progress`` 独立入口的应用装配：程序 Logo 窗口图标 + 主程序同款
-   主题装配（Fusion / QSS），进度窗口布局中嵌入 Logo 控件；
+1. ``--progress`` 独立入口的应用装配：程序 Logo 仅作为标题栏窗口图标，
+    进度窗口内容区不内嵌 Logo + 主程序同款主题装配（Fusion / QSS）；
 2. 批量解密完成后的结果对话框风格统一：``show_summary_dialog`` 使用
    程序 Logo 与主题配色，替代原生 Windows 消息框；标题选择逻辑与原生
    路径（``_notify_summary``）保持一致。
@@ -86,7 +86,7 @@ class ShowSummaryDialogTest(unittest.TestCase):
 
 
 class ProgressWindowBootstrapTest(unittest.TestCase):
-    """独立进度窗口：应用装配补齐 Logo 与主题，窗口布局内嵌 Logo 控件。"""
+    """独立进度窗口：Logo 只用于标题栏窗口图标，内容区不内嵌 Logo。"""
 
     def test_run_with_progress_sets_logo_and_calls_notify(self) -> None:
         notified: list = []
@@ -101,8 +101,8 @@ class ProgressWindowBootstrapTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(notified, [True])
 
-    def test_logo_row_injected_into_dialog(self) -> None:
-        """run_with_progress 内部：进度窗口顶部插入含 Logo 的布局行。"""
+    def test_title_bar_icon_only_no_embedded_logo(self) -> None:
+        """run_with_progress 内部：进度窗口有标题栏 Logo 图标，内容区无内嵌 Logo。"""
 
         captured = {}
         original_init = progress.QProgressDialog
@@ -115,10 +115,10 @@ class ProgressWindowBootstrapTest(unittest.TestCase):
         with mock.patch.object(progress, "QProgressDialog", SpyDialog):
             progress.run_with_progress(lambda reporter: 0, _summary(sources=0))
         dialog = captured["dialog"]
+        self.assertFalse(dialog.windowIcon().isNull(), "标题栏应显示程序 Logo 图标")
         labels = dialog.findChildren(QLabel)
         with_pixmap = [x for x in labels if x.pixmap() and not x.pixmap().isNull()]
-        self.assertTrue(with_pixmap, "进度窗口应内嵌程序 Logo")
-        self.assertFalse(dialog.windowIcon().isNull())
+        self.assertFalse(with_pixmap, "进度显示区域不应内嵌程序 Logo")
         dialog.deleteLater()
 
 
