@@ -126,6 +126,87 @@ class SourceReaderTest(unittest.TestCase):
             self.reader.read(path)
 
 
+class _FakeSession:
+    """伪装进程会话替身：read_file 返回预置字节（模拟驱动解密视角）。"""
+
+    def __init__(self, payload):
+        self.payload = payload
+        self.calls = []
+
+    def read_file(self, path):
+        self.calls.append(path)
+        return self.payload
+
+
+class DisguisedReadDelegationTest(unittest.TestCase):
+    """v2.5.1（issue #1）：伪装白名单进程读取优先于 cmd / python。"""
+
+    PLAIN = b"PK\x03\x04" + b"REAL OOXML PAYLOAD"
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="dlp-reader-dg-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.reader = SourceReader(MARKER)
+
+    def _write(self, name, data):
+        path = self.tmp / name
+        path.write_bytes(data)
+        return path
+
+    def test_disguised_session_read_preferred(self):
+        path = self._write("blank.docx", ats_cipher())
+        session = _FakeSession(self.PLAIN)
+
+        def _boom(_p):
+            raise AssertionError("伪装进程拿到明文后不应再走 cmd")
+
+        self.reader._read_via_cmd = _boom  # type: ignore[assignment]
+        data = self.reader.read(
+            path, process_queue=("winword",), acquire_session=lambda name: session
+        )
+        self.assertEqual(data, self.PLAIN)
+        self.assertEqual(session.calls, [path])
+
+    def test_disguised_cipher_falls_back_to_cmd(self):
+        path = self._write("blank.docx", ats_cipher())
+        session = _FakeSession(ats_cipher(2048))
+        self.reader._read_via_cmd = lambda p: self.PLAIN  # type: ignore[assignment]
+        data = self.reader.read(
+            path, process_queue=("winword",), acquire_session=lambda name: session
+        )
+        self.assertEqual(data, self.PLAIN)
+
+    def test_session_unavailable_skips_disguised(self):
+        path = self._write("blank.docx", ats_cipher())
+        self.reader._read_via_cmd = lambda p: self.PLAIN  # type: ignore[assignment]
+        data = self.reader.read(
+            path, process_queue=("winword",), acquire_session=lambda name: None
+        )
+        self.assertEqual(data, self.PLAIN)
+
+    def test_identical_ciphertext_error_explains_no_authorization(self):
+        path = self._write("blank.xlsx", ats_cipher())
+        disk = path.read_bytes()
+        session = _FakeSession(disk)  # 伪装进程读回与磁盘一致的密文（未授权）
+        self.reader._read_via_cmd = lambda p: disk  # type: ignore[assignment]
+        self.reader._read_via_python = lambda p: None  # type: ignore[assignment]
+        with self.assertRaises(SourceReadError) as ctx:
+            self.reader.read(
+                path, process_queue=("excel",), acquire_session=lambda name: session
+            )
+        message = str(ctx.exception)
+        self.assertIn("与磁盘密文完全一致", message)
+        self.assertIn("未对这些进程授权", message)
+
+    def test_no_data_error_keeps_generic_message(self):
+        path = self._write("blank.xlsx", ats_cipher())
+        self.reader._read_via_cmd = lambda p: None  # type: ignore[assignment]
+        self.reader._read_via_python = lambda p: None  # type: ignore[assignment]
+        with self.assertRaises(SourceReadError) as ctx:
+            self.reader.read(path)
+        self.assertIn("委派读取均失败", str(ctx.exception))
+
+
 @unittest.skipUnless(shutil.which("powershell"), "需要 PowerShell 环境")
 class VerifierIntegrationTest(unittest.TestCase):
     """EncryptionVerifier：PowerShell 头部字节协议 + 格式判定端到端。"""

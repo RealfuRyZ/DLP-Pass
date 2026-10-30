@@ -32,7 +32,8 @@ _logger = logging.getLogger(__name__)
 _CREATE_NO_WINDOW = 0x08000000
 # 伪装进程 stdin/stdout 协议版本：修改 packaging/writer_stub.py 的运行协议时
 # 必须同步递增；旧缓存 exe 因缺少/不匹配版本标记而失效，自动重建或重新释放。
-_PROTOCOL_VERSION = "2"
+# v3（2.5.1）：批量模式新增读请求（字节数 = -1），用于委派白名单进程读取明文。
+_PROTOCOL_VERSION = "3"
 # 伪装进程源码模板属于构建输入，位于项目 packaging/ 目录（打包产物内置 exe 模板，运行时不再需要）
 _STUB_SOURCE = Path(__file__).resolve().parents[2] / "packaging" / "writer_stub.py"
 

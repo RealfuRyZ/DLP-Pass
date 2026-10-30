@@ -90,12 +90,21 @@ class _FakeStdin:
             except ValueError:
                 self._proc.stdout.push(b"ERR bad-header\n")
                 return
+            proc_name = Path(self._proc.cmd[0]).stem
+            if size < 0:  # 读请求（v2.5.1 协议）：按驱动解密视角返回内容
+                target = Path(os.fsdecode(base64.b64decode(token)))
+                payload = FakeSubprocess.READ_OUTPUTS.get(proc_name)
+                if payload is None:
+                    self._proc.stdout.push(b"ERR bm8gcmVhZCBvdXRwdXQ=\n")  # "no read output"
+                    continue
+                self._proc.stdout.push(b"OK %d\n" % len(payload))
+                self._proc.stdout.push(payload)
+                continue
             if len(self._buffer) < size:  # 数据尚未写完：头部放回等待下次 flush
                 self._buffer[:0] = header + b"\n"
                 return
             del self._buffer[:size]
             target = Path(os.fsdecode(base64.b64decode(token)))
-            proc_name = Path(self._proc.cmd[0]).stem
             payload = FakeSubprocess.OUTPUTS.get(proc_name, CIPHERTEXT)
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(payload)
@@ -103,7 +112,7 @@ class _FakeStdin:
 
 
 class _FakeStdout:
-    """替身进程 stdout：按请求顺序返回 ``OK`` 应答。"""
+    """替身进程 stdout：按请求顺序返回 ``OK`` 应答与读模式数据。"""
 
     def __init__(self):
         self._pending = bytearray()
@@ -124,6 +133,15 @@ class _FakeStdout:
         del self._pending[: index + 1]
         return line
 
+    def read(self, size=-1):
+        if size is None or size < 0:
+            data = bytes(self._pending)
+            self._pending.clear()
+            return data
+        data = bytes(self._pending[:size])
+        del self._pending[:size]
+        return data
+
     def close(self):
         self.closed = True
 
@@ -131,11 +149,13 @@ class _FakeStdout:
 class FakeSubprocess:
     """替身 subprocess 模块：模拟常驻伪装进程的批处理 stdin/stdout 协议。
 
-    ``OUTPUTS`` 指定各进程名落盘的字节内容（默认密文）；``created`` 记录每次
-    启动的进程名，``processes`` 记录进程对象，用于断言进程复用与关闭时机。
+    ``OUTPUTS`` 指定各进程名落盘的字节内容（默认密文）；``READ_OUTPUTS`` 指定
+    各进程名读请求（v2.5.1 协议）返回的字节内容（未配置则回 ERR）；``created``
+    记录每次启动的进程名，``processes`` 记录进程对象，用于断言进程复用与关闭时机。
     """
 
     OUTPUTS = {}
+    READ_OUTPUTS = {}
     created = []
     processes = []
     PIPE = -1
@@ -173,9 +193,12 @@ class FakeSubprocess:
 
 
 class _FakeReader:
-    """源读取替身：始终返回明文（等价于 DLP 驱动为受信进程自动解密后的读取结果）。"""
+    """源读取替身：始终返回明文（等价于 DLP 驱动为受信进程自动解密后的读取结果）。
 
-    def read(self, path):
+    接受 v2.5.1 新增的 ``process_queue`` / ``acquire_session`` / ``log`` 关键字参数。
+    """
+
+    def read(self, path, **kwargs):
         return PLAINTEXT
 
 
@@ -186,6 +209,7 @@ class _ServiceTestBase(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp(prefix="dlp-service-"))
         self.addCleanup(shutil.rmtree, self.tmp, True)
         FakeSubprocess.OUTPUTS = {}
+        FakeSubprocess.READ_OUTPUTS = {}
         FakeSubprocess.created = []
         FakeSubprocess.processes = []
         self._patcher = mock.patch(
@@ -314,6 +338,68 @@ class BatchProcessReuseTest(_ServiceTestBase):
         service.close()
         service.close()
         self.assertEqual(FakeSubprocess.created, [])
+
+
+class DisguisedReadDelegationTest(_ServiceTestBase):
+    """v2.5.1（issue #1）：读取端委派伪装白名单进程，与写出端共用常驻会话。
+
+    艾特盾等厂商只对客户端授权进程名解密，cmd 读回与磁盘一致的密文；
+    解密前须先按映射队列以伪装进程读取明文。
+    """
+
+    # 伪装读取返回的明文必须是合法格式（真实 SourceReader 按方案链判定）
+    PLAIN_DOCX = b"PK\x03\x04" + b"REAL OOXML PAYLOAD"
+
+    def _real_reader(self):
+        from dlp_pass.core.source_reader import SourceReader
+
+        reader = SourceReader(MARKER)
+        # 屏蔽真实子进程途径，只验证伪装会话链路与兜底顺序
+        reader._read_via_cmd = lambda p: None
+        reader._read_via_python = lambda p: None
+        return reader
+
+    def _service_with_real_reader(self, queue=("notepad", "winword")):
+        return DecryptService(
+            mapping=FakeMapping(queue),
+            verifier=FakeVerifier(),
+            writer_factory=FakeWriters(),
+            source_reader=self._real_reader(),
+        )
+
+    def test_disguised_read_shares_session_with_writer(self):
+        source = self._make_source(name="共享会话.docx")
+        FakeSubprocess.READ_OUTPUTS["notepad"] = self.PLAIN_DOCX
+        FakeSubprocess.OUTPUTS["notepad"] = self.PLAIN_DOCX
+        task = DecryptTask(source=source, output=self.tmp / "out" / source.name, suffix=".docx")
+
+        outcome = self._service_with_real_reader().decrypt_file(task)
+
+        self.assertTrue(outcome.success, outcome.error)
+        self.assertEqual((self.tmp / "out" / source.name).read_bytes(), self.PLAIN_DOCX)
+        self.assertEqual(FakeSubprocess.created, ["notepad"])  # 读 + 写共用一个伪装进程
+
+    def test_disguised_read_still_cipher_identical_reports_no_authorization(self):
+        source = self._make_source(name="未授权.docx")
+        FakeSubprocess.READ_OUTPUTS["notepad"] = CIPHERTEXT   # 与磁盘密文一致
+        FakeSubprocess.READ_OUTPUTS["winword"] = CIPHERTEXT
+        task = DecryptTask(source=source, output=self.tmp / "out" / source.name, suffix=".docx")
+
+        outcome = self._service_with_real_reader().decrypt_file(task)
+
+        self.assertFalse(outcome.success)
+        self.assertIn("与磁盘密文完全一致", outcome.error)
+        self.assertIn("透明解密", outcome.error)
+
+    def test_read_falls_through_when_session_unavailable(self):
+        source = self._make_source(name="无读输出.docx")
+        # READ_OUTPUTS 未配置 -> 伪装会话读请求回 ERR -> 依次降级
+        task = DecryptTask(source=source, output=self.tmp / "out" / source.name, suffix=".docx")
+
+        outcome = self._service_with_real_reader(queue=("notepad",)).decrypt_file(task)
+
+        self.assertFalse(outcome.success)
+        self.assertIn("内存读取失败", outcome.error)
 
 
 if __name__ == "__main__":
