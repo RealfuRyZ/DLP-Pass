@@ -26,6 +26,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from ..debug_mode import head_preview, is_debug_enabled, save_bytes
 from .schemes import DEFAULT_MARKER, SchemeRegistry, default_registry
 
 _logger = logging.getLogger(__name__)
@@ -33,6 +34,8 @@ _logger = logging.getLogger(__name__)
 _CREATE_NO_WINDOW = 0x08000000
 # cmd 命令行中的敏感字符（可能触发注入或解析错误，此类路径跳过 cmd 途径）
 _CMD_UNSAFE_CHARS = set('&|<>^()%!"\'')
+# 委派读取失败时记录的 stderr 摘要长度上限
+_STDERR_PREVIEW = 200
 
 
 class SourceReadError(RuntimeError):
@@ -51,7 +54,15 @@ class SourceReader:
         """返回源文件明文内容；无法获得明文时抛出 :class:`SourceReadError`。"""
         target = Path(path)
         data = target.read_bytes()
-        if not self._is_cipher(data, target.suffix):
+        verdict = self._registry.decide(target.suffix, data, len(data))
+        if is_debug_enabled():
+            _logger.debug(
+                "源文件直读 [%s]: %d 字节 头部 %s 判定 %s/%s（%s）",
+                target.name, len(data), head_preview(data),
+                verdict.decision.value, verdict.scheme, verdict.detail or "-",
+            )
+            save_bytes(f"{target.name}.disk.bin", data)
+        if verdict.is_cipher is not True:
             return data  # 本进程可信（或文件本就是明文）
 
         _logger.info("当前进程读到原始密文，委派白名单进程读取明文: %s", target.name)
@@ -61,7 +72,19 @@ class SourceReader:
             except Exception as exc:
                 _logger.warning("委派 %s 读取失败: %s", name, exc)
                 continue
-            if delegated is not None and not self._is_cipher(delegated, target.suffix):
+            if delegated is None:
+                _logger.debug("委派 %s 读取 [%s]: 未返回数据（跳过该途径）", name, target.name)
+                continue
+            delegated_verdict = self._registry.decide(target.suffix, delegated, len(delegated))
+            if is_debug_enabled():
+                _logger.debug(
+                    "委派 %s 读取 [%s]: %d 字节 头部 %s 判定 %s/%s（%s）",
+                    name, target.name, len(delegated), head_preview(delegated),
+                    delegated_verdict.decision.value, delegated_verdict.scheme,
+                    delegated_verdict.detail or "-",
+                )
+                save_bytes(f"{target.name}.delegated-{name}.bin", delegated)
+            if delegated_verdict.is_cipher is not True:
                 _logger.info("已通过 %s 获得解密数据（%d 字节）", name, len(delegated))
                 return delegated
         raise SourceReadError("无法通过白名单进程获得解密数据（cmd / python 委派读取均失败）")
@@ -81,14 +104,23 @@ class SourceReader:
         if any(ch in _CMD_UNSAFE_CHARS for ch in text):
             _logger.warning("路径包含 cmd 特殊字符，跳过 cmd 委派: %s", path)
             return None
+        command = ["cmd", "/c", "type", text]  # 参数由 subprocess 安全引用（含空格路径可用）
+        if is_debug_enabled():
+            _logger.debug("cmd 委派读取: %s", text)
         result = subprocess.run(
-            ["cmd", "/c", "type", text],  # 参数由 subprocess 安全引用（含空格路径可用）
+            command,
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             creationflags=_CREATE_NO_WINDOW,
         )
         if result.returncode != 0:
+            _logger.debug(
+                "cmd 委派读取失败: 返回码=%d stderr=%s",
+                result.returncode, _stderr_preview(result.stderr),
+            )
             return None
+        if is_debug_enabled():
+            _logger.debug("cmd 委派读取完成: 返回码=0 输出 %d 字节", len(result.stdout or b""))
         return result.stdout
 
     @staticmethod
@@ -96,18 +128,35 @@ class SourceReader:
         """通过 python（白名单进程）读取；路径经环境变量传递，无命令行解析风险。"""
         python_exe = shutil.which("python") or shutil.which("python3")
         if not python_exe:
+            _logger.debug("python 委派读取: 未找到 python / python3 可执行文件")
             return None
         env = dict(os.environ, DLP_PASS_SOURCE=str(path))
+        if is_debug_enabled():
+            _logger.debug("python 委派读取: %s -> %s", python_exe, path)
         result = subprocess.run(
             [
                 python_exe, "-c",
                 "import os,sys; sys.stdout.buffer.write(open(os.environ['DLP_PASS_SOURCE'],'rb').read())",
             ],
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             env=env,
             creationflags=_CREATE_NO_WINDOW,
         )
         if result.returncode != 0:
+            _logger.debug(
+                "python 委派读取失败: 返回码=%d stderr=%s",
+                result.returncode, _stderr_preview(result.stderr),
+            )
             return None
+        if is_debug_enabled():
+            _logger.debug("python 委派读取完成: 返回码=0 输出 %d 字节", len(result.stdout or b""))
         return result.stdout
+
+
+def _stderr_preview(stderr: bytes | None) -> str:
+    """子进程 stderr 的单行摘要（调试日志用，截断避免噪声）。"""
+    if not stderr:
+        return "(无)"
+    text = stderr.decode("utf-8", "replace").strip().replace("\n", " | ")
+    return text[:_STDERR_PREVIEW] + ("…" if len(text) > _STDERR_PREVIEW else "")

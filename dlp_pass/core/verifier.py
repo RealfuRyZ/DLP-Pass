@@ -30,6 +30,7 @@ import threading
 from pathlib import Path
 
 from ..config import AppConfig
+from ..debug_mode import head_preview, is_debug_enabled, save_bytes
 from .schemes import HEAD_WINDOW, Decision, registry_from_config
 
 _logger = logging.getLogger(__name__)
@@ -190,8 +191,18 @@ class EncryptionVerifier:
         if data is None:
             data = self._read_with_one_shot(target)
         if data is None:
+            if is_debug_enabled():
+                _logger.debug("密文检测 [%s]: 原始头部读取失败（无法判定）", target.name)
             return None
-        verdict = self._registry.decide(_effective_suffix(target), data, target.stat().st_size)
+        suffix = _effective_suffix(target)
+        verdict = self._registry.decide(suffix, data, target.stat().st_size)
+        if is_debug_enabled():
+            _logger.debug(
+                "密文检测 [%s]: 后缀 %s 头部 %d 字节 头部 %s 判定 %s/%s（%s）",
+                target.name, suffix, len(data), head_preview(data),
+                verdict.decision.value, verdict.scheme, verdict.detail or "-",
+            )
+            save_bytes(f"{target.name}.head.bin", data)
         if verdict.decision is Decision.CIPHER:
             _logger.info("判定为密文 [%s]: %s (%s)", target.name, verdict.scheme, verdict.detail)
         return verdict.is_cipher

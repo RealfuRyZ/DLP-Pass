@@ -17,7 +17,12 @@ _logger = logging.getLogger(__name__)
 
 SETTINGS_FILENAME = "settings.json"
 THEME_KEY = "theme"
+DEBUG_MODE_KEY = "debug_mode"
+DEBUG_NOTICE_KEY = "debug_notice_shown"
 VALID_THEMES = ("dark", "light")
+
+_TRUTHY = ("true", "1", "yes", "on")
+_FALSY = ("false", "0", "no", "off", "")
 
 
 def settings_path() -> Path:
@@ -51,8 +56,45 @@ def load_theme(default: str = "dark") -> str:
 def save_theme(name: str) -> bool:
     """保存主题偏好（合并写入既有键）；成功返回 ``True``，失败告警并返回 ``False``。"""
     theme_name = name if name in VALID_THEMES else "dark"
+    return _save_key(THEME_KEY, theme_name)
+
+
+def load_debug_mode(default: bool = False) -> bool:
+    """读取调试模式偏好；缺失 / 非法 / 读取失败时返回 ``default``。"""
+    return _load_bool(DEBUG_MODE_KEY, default)
+
+
+def save_debug_mode(enabled: bool) -> bool:
+    """保存调试模式开关偏好；成功返回 ``True``。"""
+    return _save_key(DEBUG_MODE_KEY, bool(enabled))
+
+
+def load_debug_notice_shown() -> bool:
+    """「首次开启调试模式的提示」是否已经展示过。"""
+    return _load_bool(DEBUG_NOTICE_KEY, False)
+
+
+def save_debug_notice_shown(shown: bool = True) -> bool:
+    """记录调试模式首次提示的展示状态；成功返回 ``True``。"""
+    return _save_key(DEBUG_NOTICE_KEY, bool(shown))
+
+
+def _load_bool(key: str, default: bool) -> bool:
+    value = _read_all().get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in _TRUTHY:
+            return True
+        if lowered in _FALSY:
+            return False
+    return default
+
+
+def _save_key(key: str, value: object) -> bool:
     data = _read_all()
-    data[THEME_KEY] = theme_name
+    data[key] = value
     path = settings_path()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)

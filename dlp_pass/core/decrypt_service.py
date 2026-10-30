@@ -40,6 +40,7 @@ from .models import DecryptOutcome, DecryptTask
 from .source_reader import SourceReader
 from .verifier import EncryptionVerifier
 from .writer_factory import DisguisedWriterFactory
+from ..debug_mode import head_preview, is_debug_enabled, save_bytes
 
 _logger = logging.getLogger(__name__)
 
@@ -158,16 +159,32 @@ class DecryptService:
 
         self._enter_suffix_group(task.suffix)
 
+        if is_debug_enabled():
+            _logger.debug(
+                "解密任务开始: 源=%s 输出=%s 后缀=%s 原地=%s 映射版本=%s",
+                task.source, task.output, task.suffix, task.in_place, self._mapping.version,
+            )
+
         emit(f"正在读取源文件内存流: {task.source.name}")
         try:
             raw_bytes = self._reader.read(task.source)
         except Exception as exc:
             outcome.error = f"内存读取失败: {exc}"
+            if is_debug_enabled():
+                _logger.debug("内存读取失败 [%s]: %s", task.source.name, exc, exc_info=True)
             emit(outcome.error)
             return outcome
+        if is_debug_enabled():
+            _logger.debug(
+                "内存读取成功 [%s]: %d 字节 SHA256=%s 头部 %s",
+                task.source.name, len(raw_bytes),
+                hashlib.sha256(raw_bytes).hexdigest(), head_preview(raw_bytes),
+            )
         emit(f"内存读取成功，文件大小: {len(raw_bytes)} 字节")
 
         process_queue = self._mapping.get_process_queue(task.suffix)
+        if is_debug_enabled():
+            _logger.debug("进程队列 [%s]: %s", task.suffix, process_queue)
         for index, proc_name in enumerate(process_queue, 1):
             if cancelled():
                 outcome.cancelled = True
@@ -178,6 +195,7 @@ class DecryptService:
                 raw_bytes, proc_name, task.output, emit, in_place=task.in_place
             )
             outcome.attempts.append(f"{proc_name}: {note}")
+            _logger.debug("尝试 %d [%s]: 成功=%s 说明=%s", index, proc_name, success, note)
             if success:
                 outcome.success = True
                 outcome.output = task.output
@@ -190,6 +208,8 @@ class DecryptService:
             emit(f"进程 [{proc_name}.exe] 尝试落盘失败或未通过校验，尝试下一个备用进程...")
 
         outcome.error = "所有尝试的白名单进程均未能完成落盘（或导出文件仍呈密文特征）！"
+        if is_debug_enabled():
+            _logger.debug("解密失败 [%s]: %s（尝试明细: %s）", task.source.name, outcome.error, outcome.attempts)
         emit(outcome.error)
         return outcome
 
@@ -217,6 +237,7 @@ class DecryptService:
     ) -> tuple[bool, str]:
         session = self._sessions.get(proc_name)
         if session is not None and not session.is_alive():
+            _logger.debug("常驻伪装进程 [%s] 已退出，重建会话", proc_name)
             session.close()
             session = None
         if session is None:
@@ -230,6 +251,10 @@ class DecryptService:
             except Exception as exc:
                 return False, f"伪装进程启动失败: {exc}"
             self._sessions[proc_name] = session
+            if is_debug_enabled():
+                _logger.debug("伪装进程已启动: %s（目标 %s.exe）", writer_exe, proc_name)
+        elif is_debug_enabled():
+            _logger.debug("复用常驻伪装进程会话: %s", proc_name)
 
         pass_file = final_file.parent / f"{final_file.name}.pass"
         try:
@@ -244,10 +269,15 @@ class DecryptService:
         if not pass_file.exists():
             return False, "伪装进程未产生输出文件"
 
+        if is_debug_enabled():
+            self._debug_archive_pass_file(pass_file, raw_bytes)
+
         if in_place:
             # 原地覆盖：先校验临时文件为明文再替换原文件（重命名不改变内容），
             # 避免把密文临时文件覆盖到原始路径导致原文件损坏。
-            if self._verifier.is_encrypted(pass_file) is True:
+            encrypted = self._verifier.is_encrypted(pass_file)
+            _logger.debug("临时文件校验 [%s]: 结果=%s", pass_file.name, encrypted)
+            if encrypted is True:
                 emit("校验结果: 临时导出文件仍呈密文特征，原文件保持不变")
                 try:
                     pass_file.unlink(missing_ok=True)
@@ -256,12 +286,16 @@ class DecryptService:
                 return False, "导出仍为密文（原文件未改动）"
             if not self._move_into_place(pass_file, final_file):
                 return False, "覆盖原文件失败"
+            _logger.debug("原地覆盖完成: %s", final_file)
             return True, "校验通过（原地覆盖）"
 
         if not self._move_into_place(pass_file, final_file):
             return False, "输出文件重命名失败"
+        _logger.debug("临时文件已重命名: %s -> %s", pass_file.name, final_file)
 
-        if self._verifier.is_encrypted(final_file) is True:
+        encrypted = self._verifier.is_encrypted(final_file)
+        _logger.debug("输出文件校验 [%s]: 结果=%s", final_file.name, encrypted)
+        if encrypted is True:
             emit(f"校验结果: 进程 [{proc_name}.exe] 导出的文件仍呈密文特征！")
             try:
                 final_file.unlink(missing_ok=True)
@@ -269,6 +303,26 @@ class DecryptService:
                 pass
             return False, "输出仍为密文"
         return True, "校验通过"
+
+    @staticmethod
+    def _debug_archive_pass_file(pass_file: Path, written_bytes: bytes) -> None:
+        """调试模式：以本进程原始视角回读临时 ``*.pass`` 文件并留档。
+
+        磁盘回读内容与写入字节不一致时，说明伪装进程写出的明文在落盘瞬间
+        又被 DLP 驱动转加密（伪装进程名未被客户端信任），是 issue 类排查
+        「导出仍为密文」问题的关键证据。
+        """
+        try:
+            disk = pass_file.read_bytes()
+        except OSError as exc:
+            _logger.debug("临时文件回读失败 [%s]: %s", pass_file.name, exc)
+            return
+        mismatch = "" if disk == written_bytes else "（磁盘内容与写入不一致，疑似落盘即被 DLP 转加密！）"
+        _logger.debug(
+            "临时文件落盘 [%s]: 写入 %d 字节 / 磁盘 %d 字节 磁盘头部 %s%s",
+            pass_file.name, len(written_bytes), len(disk), head_preview(disk), mismatch,
+        )
+        save_bytes(f"{pass_file.name}.bin", disk)
 
     @staticmethod
     def _move_into_place(pass_file: Path, final_file: Path) -> bool:

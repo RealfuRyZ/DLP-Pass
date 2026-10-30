@@ -189,6 +189,10 @@ QPushButton#GhostButton:hover { background-color: $panel_alt; }
 QPushButton#ThemeButton { background-color: transparent; border: 1px solid $border; color: $text_muted; padding: 4px 12px; }
 QPushButton#ThemeButton:hover { color: $accent; border-color: $accent; background-color: $panel_alt; }
 
+QPushButton#DebugButton { background-color: transparent; border: 1px solid $border; color: $text_muted; padding: 4px 12px; }
+QPushButton#DebugButton:hover { color: $warning; border-color: $warning; background-color: $panel_alt; }
+QPushButton#DebugButton:checked { color: $warning; border-color: $warning; background-color: $warning_soft; }
+
 QPushButton#StopButton { background-color: transparent; border: 1px solid $border; color: $text_muted; }
 QPushButton#StopButton:hover { color: $danger; border-color: $danger; }
 QPushButton#StopButton:disabled { color: $text_faint; border-color: $border_soft; }

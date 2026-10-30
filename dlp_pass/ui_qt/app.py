@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import dlp_pass
+from .. import debug_mode
 from ..config import load_runtime_config
 from ..core.mapping_loader import load_latest
 from ..logging_setup import setup_logging
@@ -39,6 +40,9 @@ def _install_exception_hook() -> None:
 def run() -> None:
     """程序入口：加载配置与映射后启动 Qt 图形界面。"""
     setup_logging()
+    # 恢复上次的调试模式偏好（须在加载映射前开启，详细日志才能覆盖启动流程）
+    if settings.load_debug_mode():
+        debug_mode.set_debug_enabled(True)
 
     if sys.platform == "win32":
         try:

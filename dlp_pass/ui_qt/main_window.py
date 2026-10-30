@@ -41,9 +41,10 @@ from .qt_compat import (
 )
 
 import dlp_pass
+from .. import debug_mode
 from ..config import AppConfig
 from ..core.decrypt_service import DecryptService
-from ..core.mapping_loader import MappingSet
+from ..core.mapping_loader import MappingSet, debug_snapshot
 from ..core.output_mode import OutputMode, plan_decrypt_tasks, validate_output_dir
 from ..core.schemes import registry_from_config
 from ..core.source_reader import SourceReader
@@ -210,6 +211,15 @@ class MainWindow(QMainWindow):
 
         self._mapping_badge = StatusBadge("映射规则 —", "idle")
 
+        # 调试模式开关：位于主题切换按钮左侧（可勾选，开启后详细日志 + 中间文件留档）
+        self._debug_button = QPushButton()
+        self._debug_button.setObjectName("DebugButton")
+        self._debug_button.setCheckable(True)
+        self._debug_button.setChecked(debug_mode.is_debug_enabled())
+        self._debug_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._debug_button.toggled.connect(self._on_debug_toggled)
+        self._update_debug_button()
+
         # 主题切换按钮：位于「映射规则版本号」徽标左侧
         self._theme_button = QPushButton()
         self._theme_button.setObjectName("ThemeButton")
@@ -221,9 +231,51 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._version_label)
         layout.addWidget(self._update_hint)
         layout.addStretch(1)
+        layout.addWidget(self._debug_button)
         layout.addWidget(self._theme_button)
         layout.addWidget(self._mapping_badge)
         return bar
+
+    # --------------------------------------------------------- 调试模式
+
+    def _update_debug_button(self) -> None:
+        """按当前开关状态刷新调试模式按钮的文本与悬浮提示。"""
+        enabled = self._debug_button.isChecked()
+        self._debug_button.setText("调试模式·开" if enabled else "调试模式")
+        self._debug_button.setToolTip(
+            "调试模式已开启：输出详细解密日志并在日志目录留档中间文件，点击关闭"
+            if enabled
+            else "点击开启调试模式：输出覆盖解密流程的详细日志，并保留中间过程文件"
+        )
+
+    def _on_debug_toggled(self, checked: bool) -> None:
+        """开启 / 关闭调试模式：切换全局状态、持久化偏好、首次开启时提示磁盘占用。"""
+        run_dir = debug_mode.set_debug_enabled(checked)
+        settings.save_debug_mode(checked)
+        self._update_debug_button()
+        if not checked:
+            self._log_panel.add_entry("调试模式已关闭：详细日志与中间文件留档已停止。", "info")
+            return
+        if run_dir is not None:
+            self._log_panel.add_entry(
+                f"调试模式已开启：详细日志写入 dlp_pass_debug.log，中间文件留档到 {run_dir}。",
+                "warning",
+            )
+        else:
+            self._log_panel.add_entry("调试模式已开启（日志目录不可写，中间文件不会留档）。", "warning")
+        # 立即核对当前生效映射文件是否被 DLP 转加密（issue #1 排查入口）
+        debug_snapshot(self._mapping)
+        if not settings.load_debug_notice_shown():
+            settings.save_debug_notice_shown(True)
+            logs_folder = str(run_dir.parent.parent) if run_dir is not None else "日志目录"
+            QMessageBox.information(
+                self,
+                "调试模式已开启",
+                "开启后日志文件夹下将生成额外的日志文件和中间过程文件：\n\n"
+                f"{logs_folder}\n\n"
+                "其中包含详细的解密过程日志与尝试解密过程中的所有中间文件，\n"
+                "便于排查问题；请注意定期清理该文件夹，以免占用过多磁盘空间。",
+            )
 
     # --------------------------------------------------------- 版本检查
 

@@ -27,4 +27,6 @@ packaging/dist/
 # 日志与崩溃报告
 *.log
 nuitka-crash-report.xml
+# 调试模式中间文件留档（本地排查用，勿提交
+logs/debug/
 
